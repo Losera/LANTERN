@@ -9,17 +9,18 @@ for an agent to install it.
 
 ## Teammate ownership and messageboard
 
-Use the [team roster](docs/project.md#team-responsibility): Teammate A is Losera,
-the lead/integrator; Teammate B's name is pending for context/evidence review;
-Teammate C's name is pending for the contributor walkthrough. These slots do not
-assign unnamed people or grant claims.
+Use the [team roster](docs/project.md#team-responsibility): Teammate A is the
+lead/integrator, Teammate B owns context/evidence review, and Teammate C owns
+the contributor walkthrough. All three slots are filled, and the roster holds
+the mapping to a person. A filled slot still grants no claim.
 
-Each claimed issue has exactly one accountable human owner, written as
-`Teammate A - Losera`, for example. An unclaimed issue remains `Unassigned` with
-its proposed slot and name pending. Keep the agent in a separate `Agent/session`
-field: record its harness, available version, session/task name, and active or
-stopped status. A teammate may own several issues; each path/component still has
-one active writer across all sessions and worktrees.
+Each claimed issue has exactly one accountable human owner, written as the bare
+slot, `Teammate B` for example; the roster resolves who that is, so a name need
+not be repeated on every issue. An unclaimed issue remains `Unassigned`. Keep the
+agent in a separate `Agent/session` field: record its harness, available version,
+session/task name, and active or stopped status. A teammate may own several
+issues; each path/component still has one active writer across all sessions and
+worktrees.
 
 The issue body is the messageboard's current assignment and state. Use these
 fields from the [task template](.github/ISSUE_TEMPLATE/task.md):

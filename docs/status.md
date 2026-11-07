@@ -101,10 +101,11 @@ an offline frontend. They establish nothing about the experiment's conclusions.
 
 ## First bounded work and ownership
 
-Teammate A is Losera, the lead/integrator, and owns integration, instructions,
+Teammate A is the lead/integrator and owns integration, instructions,
 project/status decisions, shared contracts, skills, and check tooling.
-Teammate B is the proposed context/evidence reviewer; Teammate C is the proposed
-contributor walkthrough owner. B and C have no agreed names or approved claims.
+Teammate B owns context, evidence, and evaluation review; Teammate C owns the
+contributor walkthrough and collaboration checks. All three slots are filled;
+see the roster for the mapping. Claims are still granted per issue.
 See the [team roster](project.md#team-responsibility) and
 [messageboard workflow](../CONTRIBUTING.md#teammate-ownership-and-messageboard).
 
@@ -115,8 +116,8 @@ Issues track the remaining acceptance work.
 The single dispatcher and approved path claims prevent simultaneous edits.
 
 - [Issue 1: lead semantic review and integration](https://github.com/Losera/LANTERN/issues/1).
-- [Issue 2: context/evidence review, proposed Teammate B](https://github.com/Losera/LANTERN/issues/2).
-- [Issue 3: beginner/harness walkthrough, proposed Teammate C](https://github.com/Losera/LANTERN/issues/3).
+- [Issue 2: context/evidence review, Teammate B](https://github.com/Losera/LANTERN/issues/2).
+- [Issue 3: beginner/harness walkthrough, Teammate C](https://github.com/Losera/LANTERN/issues/3).
 
 Issue 1's review and integration objective is complete through PR 4. Its handoff
 is reconciled to Done; the GitHub issue remains open for the lead's closure
