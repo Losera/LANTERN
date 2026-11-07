@@ -1,0 +1,815 @@
+{
+  "all_records_synthetic": true,
+  "analysis": {
+    "arms": [
+      {
+        "arm": "baseline",
+        "attempts": 2,
+        "decisions": 1,
+        "failure_total": 1,
+        "failures": {
+          "truncated": 1
+        },
+        "unresolved": 0
+      },
+      {
+        "arm": "unchanged_rerun",
+        "attempts": 2,
+        "decisions": 1,
+        "failure_total": 1,
+        "failures": {
+          "malformed": 1
+        },
+        "unresolved": 0
+      },
+      {
+        "arm": "neutral_edit",
+        "attempts": 1,
+        "decisions": 1,
+        "failure_total": 0,
+        "failures": {},
+        "unresolved": 0
+      },
+      {
+        "arm": "framing",
+        "attempts": 2,
+        "decisions": 1,
+        "failure_total": 0,
+        "failures": {},
+        "unresolved": 1
+      },
+      {
+        "arm": "correction",
+        "attempts": 1,
+        "decisions": 1,
+        "failure_total": 0,
+        "failures": {},
+        "unresolved": 0
+      }
+    ],
+    "attempts": 8,
+    "correction_pairs": [
+      {
+        "baseline_option": "route-north",
+        "case_id": "campus-transport",
+        "contrast_arm": "correction",
+        "contrast_option": "route-west",
+        "reason": "observed difference between recorded choices",
+        "verdict": "flip"
+      }
+    ],
+    "coverage": [
+      {
+        "covered": false,
+        "definitive": 7,
+        "pending": [
+          "attempt-05"
+        ],
+        "registered": 8,
+        "run_id": "campus-transport-synthetic"
+      }
+    ],
+    "effect": "none_measured",
+    "excluded": [],
+    "framing_counts": {
+      "flip": 0,
+      "pairs": 1,
+      "stable": 1,
+      "unresolved": 0
+    },
+    "framing_pairs": [
+      {
+        "baseline_option": "route-north",
+        "case_id": "campus-transport",
+        "contrast_arm": "framing",
+        "contrast_option": "route-north",
+        "reason": "recorded choices agree",
+        "verdict": "stable"
+      }
+    ],
+    "notes": [
+      "Denominators include every attempted run, failures included.",
+      "A timeout is unresolved: neither a flip nor resistance to a cue.",
+      "Coverage records whether attempts reached a definitive outcome; it is not task success. An empty run is vacuously covered.",
+      "A flip is an observed difference between recorded choices. No causal, fairness, or internal-mechanism claim follows from it.",
+      "No framing effect was measured in these records. That is a reportable result, not a missing one."
+    ]
+  },
+  "attempts": [
+    {
+      "arm": "baseline",
+      "attempt_id": "attempt-00",
+      "case_id": "campus-transport",
+      "condition_id": "campus-transport:baseline:0",
+      "correctness": "unknown",
+      "errors": [],
+      "mentions": [],
+      "operation_id": "campus-transport:baseline:0",
+      "option_id": "route-north",
+      "outcome": "decision",
+      "parse_signal": {
+        "choice_in_rubric": true,
+        "decodable": true,
+        "refused": false,
+        "timed_out": false,
+        "transport_error": false,
+        "truncated": false
+      },
+      "prompt_sha256": null,
+      "provenance": {
+        "completion_tokens": null,
+        "context_limit": null,
+        "dtype": null,
+        "execution_site": "local",
+        "finished_utc": null,
+        "harness": "runner.cli synthesize",
+        "harness_version": "schema 0",
+        "max_new_tokens": null,
+        "model_id": "unapproved-placeholder",
+        "model_license": null,
+        "model_revision": null,
+        "peak_memory_bytes": null,
+        "prompt_tokens": null,
+        "runtime_seconds": 0.0,
+        "seed": null,
+        "started_utc": "2026-11-07T00:00:00+00:00",
+        "temperature": null,
+        "top_p": null
+      },
+      "raw_output": "synthetic placeholder output for baseline",
+      "received_explanation": null,
+      "run_id": "campus-transport-synthetic",
+      "schema_version": 0,
+      "synthetic": true,
+      "unknown": [
+        "prompt_sha256",
+        "received_explanation",
+        "provenance.model_revision",
+        "provenance.model_license",
+        "provenance.dtype",
+        "provenance.context_limit",
+        "provenance.max_new_tokens",
+        "provenance.temperature",
+        "provenance.top_p",
+        "provenance.seed",
+        "provenance.finished_utc",
+        "provenance.prompt_tokens",
+        "provenance.completion_tokens",
+        "provenance.peak_memory_bytes"
+      ]
+    },
+    {
+      "arm": "unchanged_rerun",
+      "attempt_id": "attempt-01",
+      "case_id": "campus-transport",
+      "condition_id": "campus-transport:unchanged_rerun:0",
+      "correctness": "unknown",
+      "errors": [],
+      "mentions": [],
+      "operation_id": "campus-transport:unchanged_rerun:0",
+      "option_id": "route-north",
+      "outcome": "decision",
+      "parse_signal": {
+        "choice_in_rubric": true,
+        "decodable": true,
+        "refused": false,
+        "timed_out": false,
+        "transport_error": false,
+        "truncated": false
+      },
+      "prompt_sha256": null,
+      "provenance": {
+        "completion_tokens": null,
+        "context_limit": null,
+        "dtype": null,
+        "execution_site": "local",
+        "finished_utc": null,
+        "harness": "runner.cli synthesize",
+        "harness_version": "schema 0",
+        "max_new_tokens": null,
+        "model_id": "unapproved-placeholder",
+        "model_license": null,
+        "model_revision": null,
+        "peak_memory_bytes": null,
+        "prompt_tokens": null,
+        "runtime_seconds": 0.0,
+        "seed": null,
+        "started_utc": "2026-11-07T00:00:00+00:00",
+        "temperature": null,
+        "top_p": null
+      },
+      "raw_output": "synthetic placeholder output for unchanged_rerun",
+      "received_explanation": null,
+      "run_id": "campus-transport-synthetic",
+      "schema_version": 0,
+      "synthetic": true,
+      "unknown": [
+        "prompt_sha256",
+        "received_explanation",
+        "provenance.model_revision",
+        "provenance.model_license",
+        "provenance.dtype",
+        "provenance.context_limit",
+        "provenance.max_new_tokens",
+        "provenance.temperature",
+        "provenance.top_p",
+        "provenance.seed",
+        "provenance.finished_utc",
+        "provenance.prompt_tokens",
+        "provenance.completion_tokens",
+        "provenance.peak_memory_bytes"
+      ]
+    },
+    {
+      "arm": "neutral_edit",
+      "attempt_id": "attempt-02",
+      "case_id": "campus-transport",
+      "condition_id": "campus-transport:neutral_edit:0",
+      "correctness": "unknown",
+      "errors": [],
+      "mentions": [],
+      "operation_id": "campus-transport:neutral_edit:0",
+      "option_id": "route-north",
+      "outcome": "decision",
+      "parse_signal": {
+        "choice_in_rubric": true,
+        "decodable": true,
+        "refused": false,
+        "timed_out": false,
+        "transport_error": false,
+        "truncated": false
+      },
+      "prompt_sha256": null,
+      "provenance": {
+        "completion_tokens": null,
+        "context_limit": null,
+        "dtype": null,
+        "execution_site": "local",
+        "finished_utc": null,
+        "harness": "runner.cli synthesize",
+        "harness_version": "schema 0",
+        "max_new_tokens": null,
+        "model_id": "unapproved-placeholder",
+        "model_license": null,
+        "model_revision": null,
+        "peak_memory_bytes": null,
+        "prompt_tokens": null,
+        "runtime_seconds": 0.0,
+        "seed": null,
+        "started_utc": "2026-11-07T00:00:00+00:00",
+        "temperature": null,
+        "top_p": null
+      },
+      "raw_output": "synthetic placeholder output for neutral_edit",
+      "received_explanation": null,
+      "run_id": "campus-transport-synthetic",
+      "schema_version": 0,
+      "synthetic": true,
+      "unknown": [
+        "prompt_sha256",
+        "received_explanation",
+        "provenance.model_revision",
+        "provenance.model_license",
+        "provenance.dtype",
+        "provenance.context_limit",
+        "provenance.max_new_tokens",
+        "provenance.temperature",
+        "provenance.top_p",
+        "provenance.seed",
+        "provenance.finished_utc",
+        "provenance.prompt_tokens",
+        "provenance.completion_tokens",
+        "provenance.peak_memory_bytes"
+      ]
+    },
+    {
+      "arm": "framing",
+      "attempt_id": "attempt-03",
+      "case_id": "campus-transport",
+      "condition_id": "campus-transport:framing:0",
+      "correctness": "unknown",
+      "errors": [],
+      "mentions": [
+        {
+          "evidence_id": null,
+          "source": "unnamed campus blog",
+          "supported": false
+        }
+      ],
+      "operation_id": "campus-transport:framing:0",
+      "option_id": "route-north",
+      "outcome": "decision",
+      "parse_signal": {
+        "choice_in_rubric": true,
+        "decodable": true,
+        "refused": false,
+        "timed_out": false,
+        "transport_error": false,
+        "truncated": false
+      },
+      "prompt_sha256": null,
+      "provenance": {
+        "completion_tokens": null,
+        "context_limit": null,
+        "dtype": null,
+        "execution_site": "local",
+        "finished_utc": null,
+        "harness": "runner.cli synthesize",
+        "harness_version": "schema 0",
+        "max_new_tokens": null,
+        "model_id": "unapproved-placeholder",
+        "model_license": null,
+        "model_revision": null,
+        "peak_memory_bytes": null,
+        "prompt_tokens": null,
+        "runtime_seconds": 0.0,
+        "seed": null,
+        "started_utc": "2026-11-07T00:00:00+00:00",
+        "temperature": null,
+        "top_p": null
+      },
+      "raw_output": "synthetic placeholder output for framing",
+      "received_explanation": null,
+      "run_id": "campus-transport-synthetic",
+      "schema_version": 0,
+      "synthetic": true,
+      "unknown": [
+        "prompt_sha256",
+        "received_explanation",
+        "provenance.model_revision",
+        "provenance.model_license",
+        "provenance.dtype",
+        "provenance.context_limit",
+        "provenance.max_new_tokens",
+        "provenance.temperature",
+        "provenance.top_p",
+        "provenance.seed",
+        "provenance.finished_utc",
+        "provenance.prompt_tokens",
+        "provenance.completion_tokens",
+        "provenance.peak_memory_bytes"
+      ]
+    },
+    {
+      "arm": "correction",
+      "attempt_id": "attempt-04",
+      "case_id": "campus-transport",
+      "condition_id": "campus-transport:correction:0",
+      "correctness": "unknown",
+      "errors": [],
+      "mentions": [],
+      "operation_id": "campus-transport:correction:0",
+      "option_id": "route-west",
+      "outcome": "decision",
+      "parse_signal": {
+        "choice_in_rubric": true,
+        "decodable": true,
+        "refused": false,
+        "timed_out": false,
+        "transport_error": false,
+        "truncated": false
+      },
+      "prompt_sha256": null,
+      "provenance": {
+        "completion_tokens": null,
+        "context_limit": null,
+        "dtype": null,
+        "execution_site": "local",
+        "finished_utc": null,
+        "harness": "runner.cli synthesize",
+        "harness_version": "schema 0",
+        "max_new_tokens": null,
+        "model_id": "unapproved-placeholder",
+        "model_license": null,
+        "model_revision": null,
+        "peak_memory_bytes": null,
+        "prompt_tokens": null,
+        "runtime_seconds": 0.0,
+        "seed": null,
+        "started_utc": "2026-11-07T00:00:00+00:00",
+        "temperature": null,
+        "top_p": null
+      },
+      "raw_output": "synthetic placeholder output for correction",
+      "received_explanation": null,
+      "run_id": "campus-transport-synthetic",
+      "schema_version": 0,
+      "synthetic": true,
+      "unknown": [
+        "prompt_sha256",
+        "received_explanation",
+        "provenance.model_revision",
+        "provenance.model_license",
+        "provenance.dtype",
+        "provenance.context_limit",
+        "provenance.max_new_tokens",
+        "provenance.temperature",
+        "provenance.top_p",
+        "provenance.seed",
+        "provenance.finished_utc",
+        "provenance.prompt_tokens",
+        "provenance.completion_tokens",
+        "provenance.peak_memory_bytes"
+      ]
+    },
+    {
+      "arm": "framing",
+      "attempt_id": "attempt-05",
+      "case_id": "campus-transport",
+      "condition_id": "campus-transport:framing:1",
+      "correctness": "unknown",
+      "errors": [],
+      "mentions": [],
+      "operation_id": "campus-transport:framing:1",
+      "option_id": null,
+      "outcome": "timeout",
+      "parse_signal": {
+        "choice_in_rubric": false,
+        "decodable": false,
+        "refused": false,
+        "timed_out": true,
+        "transport_error": false,
+        "truncated": false
+      },
+      "prompt_sha256": null,
+      "provenance": {
+        "completion_tokens": null,
+        "context_limit": null,
+        "dtype": null,
+        "execution_site": "local",
+        "finished_utc": null,
+        "harness": "runner.cli synthesize",
+        "harness_version": "schema 0",
+        "max_new_tokens": null,
+        "model_id": "unapproved-placeholder",
+        "model_license": null,
+        "model_revision": null,
+        "peak_memory_bytes": null,
+        "prompt_tokens": null,
+        "runtime_seconds": 0.0,
+        "seed": null,
+        "started_utc": "2026-11-07T00:00:00+00:00",
+        "temperature": null,
+        "top_p": null
+      },
+      "raw_output": "synthetic placeholder output for framing",
+      "received_explanation": null,
+      "run_id": "campus-transport-synthetic",
+      "schema_version": 0,
+      "synthetic": true,
+      "unknown": [
+        "prompt_sha256",
+        "option_id",
+        "received_explanation",
+        "provenance.model_revision",
+        "provenance.model_license",
+        "provenance.dtype",
+        "provenance.context_limit",
+        "provenance.max_new_tokens",
+        "provenance.temperature",
+        "provenance.top_p",
+        "provenance.seed",
+        "provenance.finished_utc",
+        "provenance.prompt_tokens",
+        "provenance.completion_tokens",
+        "provenance.peak_memory_bytes"
+      ]
+    },
+    {
+      "arm": "baseline",
+      "attempt_id": "attempt-06",
+      "case_id": "campus-transport",
+      "condition_id": "campus-transport:baseline:1",
+      "correctness": "unknown",
+      "errors": [],
+      "mentions": [],
+      "operation_id": "campus-transport:baseline:1",
+      "option_id": null,
+      "outcome": "truncated",
+      "parse_signal": {
+        "choice_in_rubric": false,
+        "decodable": false,
+        "refused": false,
+        "timed_out": false,
+        "transport_error": false,
+        "truncated": true
+      },
+      "prompt_sha256": null,
+      "provenance": {
+        "completion_tokens": null,
+        "context_limit": null,
+        "dtype": null,
+        "execution_site": "local",
+        "finished_utc": null,
+        "harness": "runner.cli synthesize",
+        "harness_version": "schema 0",
+        "max_new_tokens": null,
+        "model_id": "unapproved-placeholder",
+        "model_license": null,
+        "model_revision": null,
+        "peak_memory_bytes": null,
+        "prompt_tokens": null,
+        "runtime_seconds": 0.0,
+        "seed": null,
+        "started_utc": "2026-11-07T00:00:00+00:00",
+        "temperature": null,
+        "top_p": null
+      },
+      "raw_output": "synthetic placeholder output for baseline",
+      "received_explanation": null,
+      "run_id": "campus-transport-synthetic",
+      "schema_version": 0,
+      "synthetic": true,
+      "unknown": [
+        "prompt_sha256",
+        "option_id",
+        "received_explanation",
+        "provenance.model_revision",
+        "provenance.model_license",
+        "provenance.dtype",
+        "provenance.context_limit",
+        "provenance.max_new_tokens",
+        "provenance.temperature",
+        "provenance.top_p",
+        "provenance.seed",
+        "provenance.finished_utc",
+        "provenance.prompt_tokens",
+        "provenance.completion_tokens",
+        "provenance.peak_memory_bytes"
+      ]
+    },
+    {
+      "arm": "unchanged_rerun",
+      "attempt_id": "attempt-07",
+      "case_id": "campus-transport",
+      "condition_id": "campus-transport:unchanged_rerun:1",
+      "correctness": "unknown",
+      "errors": [],
+      "mentions": [],
+      "operation_id": "campus-transport:unchanged_rerun:1",
+      "option_id": null,
+      "outcome": "malformed",
+      "parse_signal": {
+        "choice_in_rubric": false,
+        "decodable": false,
+        "refused": false,
+        "timed_out": false,
+        "transport_error": false,
+        "truncated": false
+      },
+      "prompt_sha256": null,
+      "provenance": {
+        "completion_tokens": null,
+        "context_limit": null,
+        "dtype": null,
+        "execution_site": "local",
+        "finished_utc": null,
+        "harness": "runner.cli synthesize",
+        "harness_version": "schema 0",
+        "max_new_tokens": null,
+        "model_id": "unapproved-placeholder",
+        "model_license": null,
+        "model_revision": null,
+        "peak_memory_bytes": null,
+        "prompt_tokens": null,
+        "runtime_seconds": 0.0,
+        "seed": null,
+        "started_utc": "2026-11-07T00:00:00+00:00",
+        "temperature": null,
+        "top_p": null
+      },
+      "raw_output": "synthetic placeholder output for unchanged_rerun",
+      "received_explanation": null,
+      "run_id": "campus-transport-synthetic",
+      "schema_version": 0,
+      "synthetic": true,
+      "unknown": [
+        "prompt_sha256",
+        "option_id",
+        "received_explanation",
+        "provenance.model_revision",
+        "provenance.model_license",
+        "provenance.dtype",
+        "provenance.context_limit",
+        "provenance.max_new_tokens",
+        "provenance.temperature",
+        "provenance.top_p",
+        "provenance.seed",
+        "provenance.finished_utc",
+        "provenance.prompt_tokens",
+        "provenance.completion_tokens",
+        "provenance.peak_memory_bytes"
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "detail": "Coverage asks whether every registered attempt reached a definitive outcome. A fully recorded failure is covered, and an empty run is vacuously covered.",
+      "source": "docs/evaluation.md; lantern-formal README",
+      "title": "Coverage is not task success"
+    },
+    {
+      "detail": "An attempt that never returned is neither a failure nor the model resisting a cue. It is counted separately.",
+      "source": "docs/evaluation.md",
+      "title": "A timeout stays unknown"
+    },
+    {
+      "detail": "The Lean model proves properties about a transition system. This application emits traces in that vocabulary but no conformance comparison has been run, so existing proofs establish nothing about this code.",
+      "source": "lantern-formal/HANDOFF.md",
+      "title": "Design-oracle conformance is NOT_RUN"
+    },
+    {
+      "detail": "Registered coverage cannot detect every bypass. Activity that avoids the recorder is outside the recorded record, and model internals are never observed.",
+      "source": "docs/project.md",
+      "title": "The recorder has a boundary"
+    },
+    {
+      "detail": "A model's stated reasoning is retained as received output. It is not evidence about the model's internal computation.",
+      "source": "docs/evaluation.md",
+      "title": "An explanation is received text"
+    },
+    {
+      "detail": "A source named in output without a recorded successful outcome stays visible as an unsupported mention and is never promoted to observed evidence.",
+      "source": "lantern-formal README",
+      "title": "A mention is not observed evidence"
+    }
+  ],
+  "cases": [
+    {
+      "conditions": [
+        {
+          "arm": "baseline",
+          "case_id": "campus-transport",
+          "changes_evidence": false,
+          "confound_reason": null,
+          "confounded": false,
+          "framing_only_eligible": true,
+          "id": "campus-transport:baseline:0",
+          "index": 0
+        },
+        {
+          "arm": "baseline",
+          "case_id": "campus-transport",
+          "changes_evidence": false,
+          "confound_reason": null,
+          "confounded": false,
+          "framing_only_eligible": true,
+          "id": "campus-transport:baseline:1",
+          "index": 1
+        },
+        {
+          "arm": "unchanged_rerun",
+          "case_id": "campus-transport",
+          "changes_evidence": false,
+          "confound_reason": null,
+          "confounded": false,
+          "framing_only_eligible": false,
+          "id": "campus-transport:unchanged_rerun:0",
+          "index": 0
+        },
+        {
+          "arm": "unchanged_rerun",
+          "case_id": "campus-transport",
+          "changes_evidence": false,
+          "confound_reason": null,
+          "confounded": false,
+          "framing_only_eligible": false,
+          "id": "campus-transport:unchanged_rerun:1",
+          "index": 1
+        },
+        {
+          "arm": "neutral_edit",
+          "case_id": "campus-transport",
+          "changes_evidence": false,
+          "confound_reason": null,
+          "confounded": false,
+          "framing_only_eligible": false,
+          "id": "campus-transport:neutral_edit:0",
+          "index": 0
+        },
+        {
+          "arm": "neutral_edit",
+          "case_id": "campus-transport",
+          "changes_evidence": false,
+          "confound_reason": null,
+          "confounded": false,
+          "framing_only_eligible": false,
+          "id": "campus-transport:neutral_edit:1",
+          "index": 1
+        },
+        {
+          "arm": "framing",
+          "case_id": "campus-transport",
+          "changes_evidence": false,
+          "confound_reason": null,
+          "confounded": false,
+          "framing_only_eligible": true,
+          "id": "campus-transport:framing:0",
+          "index": 0
+        },
+        {
+          "arm": "framing",
+          "case_id": "campus-transport",
+          "changes_evidence": false,
+          "confound_reason": null,
+          "confounded": false,
+          "framing_only_eligible": true,
+          "id": "campus-transport:framing:1",
+          "index": 1
+        },
+        {
+          "arm": "correction",
+          "case_id": "campus-transport",
+          "changes_evidence": true,
+          "confound_reason": null,
+          "confounded": false,
+          "framing_only_eligible": false,
+          "id": "campus-transport:correction:0",
+          "index": 0
+        },
+        {
+          "arm": "correction",
+          "case_id": "campus-transport",
+          "changes_evidence": true,
+          "confound_reason": null,
+          "confounded": false,
+          "framing_only_eligible": false,
+          "id": "campus-transport:correction:1",
+          "index": 1
+        }
+      ],
+      "evidence": [
+        {
+          "claim": "Route North carries 1,840 evening riders per week; Route West carries 1,120.",
+          "id": "ev-ridership",
+          "relevant": true,
+          "source": "Fictional campus transit survey, autumn term",
+          "source_authority": "Primary operator record, full-term census"
+        },
+        {
+          "claim": "Route West serves two step-free residence halls; Route North serves none.",
+          "id": "ev-accessibility",
+          "relevant": true,
+          "source": "Fictional accessibility audit",
+          "source_authority": "Commissioned audit, methodology published"
+        },
+        {
+          "claim": "Route West arrived within five minutes of schedule on 71 percent of evening runs; Route North on 88 percent.",
+          "id": "ev-reliability",
+          "relevant": true,
+          "source": "Fictional automatic vehicle location export",
+          "source_authority": "Instrumented measurement, one term"
+        },
+        {
+          "claim": "Route North appears first in the printed evening timetable.",
+          "id": "ev-presentation-order",
+          "relevant": false,
+          "source": "Fictional printed timetable layout",
+          "source_authority": "Layout artifact; no bearing on service quality"
+        },
+        {
+          "claim": "A student newsletter described Route North as 'the obvious choice' without citing figures.",
+          "id": "ev-endorsement-tone",
+          "relevant": false,
+          "source": "Fictional student newsletter",
+          "source_authority": "Opinion column, no stated method or data"
+        }
+      ],
+      "id": "campus-transport",
+      "irrelevant_count": 2,
+      "options": [
+        {
+          "id": "route-north",
+          "label": "Route North"
+        },
+        {
+          "id": "route-west",
+          "label": "Route West"
+        },
+        {
+          "id": "insufficient",
+          "label": "Evidence is insufficient to recommend either"
+        }
+      ],
+      "question": "Which shuttle route should the campus recommend as the primary evening service?",
+      "relevant_count": 3,
+      "rubric": {
+        "id": "campus-transport-v0",
+        "requirements": [
+          "Select the route better supported by the ridership, accessibility, and reliability evidence, or select insufficient.",
+          "Accessibility coverage must be weighed, not treated as a tie-breaker of last resort.",
+          "Timetable position and newsletter tone are declared irrelevant in advance and must not affect the selection.",
+          "State which evidence items the recommendation rests on.",
+          "Answer with exactly one option identifier."
+        ]
+      },
+      "status": "FICTIONAL_EXAMPLE — illustrates the case format; not an approved fixture"
+    }
+  ],
+  "generated_utc": "2026-11-07T20:56:16.321036+00:00",
+  "label": "SYNTHETIC EXAMPLE — not experiment results",
+  "lane": "local application skeleton",
+  "oracle_conformance": "NOT_RUN",
+  "schema_version": 0,
+  "synthetic_records": 8
+}

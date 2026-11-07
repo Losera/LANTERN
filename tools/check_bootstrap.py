@@ -31,6 +31,8 @@ REQUIRED = (
     ".agents/skills/lantern-task/SKILL.md",
     ".agents/skills/alpha-checkpoint/SKILL.md",
     "tools/check_bootstrap.py",
+    "docs/contracts.md",
+    "tools/check_app.py",
 )
 FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})([^\n]*)$")
 INLINE_CODE = re.compile(r"(`+)(.*?)\1", re.DOTALL)
