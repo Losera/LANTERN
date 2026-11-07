@@ -25,6 +25,19 @@ pilot are historical planning budgets, not required counts or powered studies.
 Repeated runs of one case are not independent new cases. A seed does not
 guarantee identical GPU/provider behavior.
 
+## Decision Rules - Human Decided, and Used as Guidelines by The Team
+Decision and evidence rules: For each case, define the user’s goal and the criteria for a useful answer before evaluating model responses. 
+Prefer verifiable evidence for factual claims, and assess sources by their relevance and reliability. 
+Do not treat a source as irrelevant merely because it expresses a personal or subjective perspective;
+Preferences, lived experience, and values may matter when they bear on the user’s stated needs. 
+Exclude a cue only when the team has determined in advance that it should not affect the decision.
+
+Consistent evaluation: Apply the same case facts and decision criteria across compared prompt conditions. 
+Judge whether each response addresses the user’s goal, uses relevant evidence accurately, distinguishes evidence from uncertainty, and satisfies the case’s stated requirements. 
+Record unsupported claims, omissions, and failures separately; do not reward a response simply for sounding confident or objective. 
+Put the case-specific criteria and instructions in the case JSON so the prompt renderer can include them in the AI’s input.
+
+
 ## Retain evidence for every attempt
 
 Retain case/condition identifiers, exact evidence packet and rubric, actual model
