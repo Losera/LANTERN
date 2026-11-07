@@ -79,15 +79,21 @@ introduced here.
 
 | Teammate | Person | Responsibility |
 | --- | --- | --- |
-| A | Losera, lead/integrator | Integration, shared contracts, architecture decisions, and review |
-| B | Name pending | Context, evidence, and evaluation review; issue 2 |
-| C | Name pending | Contributor walkthrough and collaboration checks; issue 3 |
+| A | Juan (Losera), lead/integrator | Integration, shared contracts, architecture decisions, and review |
+| B | Andrew | Context, evidence, and evaluation review |
+| C | Kai | Contributor walkthrough and collaboration checks |
+
+All three slots are filled. The slot letter is the addressing scheme used on
+the board and in the `teammate-a`, `teammate-b`, and `teammate-c` labels; this
+table is the only place the mapping to a person needs to be written, so issue
+bodies may use the bare slot. A label still filters a slot and grants no
+ownership or edit authority.
 
 The lead also owns instructions, dependency/build files, and verification
-tooling. B and C describe proposed responsibility slots; their issues remain
-unassigned until the lead agrees actual names and grants path claims.
+tooling. A filled slot is not a standing claim: the lead still records an
+approved scope per issue before work starts.
 
-Each claimed issue has one named human owner. Record the agent session
+Each claimed issue has one accountable human owner. Record the agent session
 separately; a session change does not transfer ownership or release a claim.
 Several issues may share an owner, but each path/component has one active writer.
 See the [issue workflow](../CONTRIBUTING.md#teammate-ownership-and-messageboard).
