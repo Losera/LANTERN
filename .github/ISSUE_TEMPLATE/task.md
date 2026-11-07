@@ -10,11 +10,11 @@ assignees: ''
 
 - Objective:
 - State: Ready
-- Human owner: Unassigned; agree the actual name before claiming
-- Agent: harness/version and session label, or none
-- Allowed files/components:
+- Human owner: Unassigned; proposed Teammate <letter> - <name or name pending>
+- Agent/session: none assigned; record harness/version, session/task name, and active/stopped once assigned
+- Approved scope: Pending lead claim; list proposed files/components
 - Branch/worktree:
-- Acceptance command or observable walkthrough:
+- Acceptance: exact command or observable walkthrough
 - Dependencies:
 - Claim approval: Pending lead decision; no edit authority yet
 - Issue-comment authorization: none unless explicitly granted in the launch task
@@ -22,7 +22,7 @@ assignees: ''
 ## Progress and evidence
 
 - Latest progress and date:
-- Blockers:
+- Next action / blocker:
 - Verification: directory, base/head SHAs, dirty/untracked state, exact commands and results
 - Evidence locations:
 - Not run / limitations:
@@ -36,8 +36,14 @@ assignees: ''
 - Next recommended action:
 
 States: Ready / Doing / Blocked / Review / Done. The lead controls claims,
-scope changes, and closure; comments are not atomic locks. See
+scope changes, and closure; comments are not atomic locks. A claimed issue has
+one named human owner, written as `Teammate A - Losera`, for example. An unclaimed
+issue stays `Unassigned` even when it has a proposed teammate slot or label.
+Changing or stopping an agent session preserves the human owner and approved
+claim. The body holds current state; dated comments retain progress and handoffs.
+Labels `teammate-a`, `teammate-b`, and `teammate-c` filter slots only and grant no
+ownership or edit authority. See
 [CONTRIBUTING](https://github.com/Losera/LANTERN/blob/main/CONTRIBUTING.md#claim-work) and
 [engineering policy](https://github.com/Losera/LANTERN/blob/main/AGENTS.md).
-These links become available after the bootstrap is merged; use the local
-checkout before publication.
+Read the current issue and comments at launch, resume, scope change, review, and
+handoff; sessions do not synchronize automatically.

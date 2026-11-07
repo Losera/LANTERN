@@ -77,10 +77,20 @@ introduced here.
 
 ## Team responsibility
 
-The lead owns integration, shared contracts, instructions, dependency/build
-files, and verification tooling. Teammate A provisionally owns context/evidence;
-teammate B owns the contributor walkthrough. Agree actual names and file claims
-before concurrent editing. See the [issue workflow](../CONTRIBUTING.md).
+| Teammate | Person | Responsibility |
+| --- | --- | --- |
+| A | Losera, lead/integrator | Integration, shared contracts, architecture decisions, and review |
+| B | Name pending | Context, evidence, and evaluation review; issue 2 |
+| C | Name pending | Contributor walkthrough and collaboration checks; issue 3 |
+
+The lead also owns instructions, dependency/build files, and verification
+tooling. B and C describe proposed responsibility slots; their issues remain
+unassigned until the lead agrees actual names and grants path claims.
+
+Each claimed issue has one named human owner. Record the agent session
+separately; a session change does not transfer ownership or release a claim.
+Several issues may share an owner, but each path/component has one active writer.
+See the [issue workflow](../CONTRIBUTING.md#teammate-ownership-and-messageboard).
 
 ## Source basis
 
