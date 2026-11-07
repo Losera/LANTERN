@@ -7,6 +7,58 @@ Git, Python, harness version, and access during onboarding. Never paste keys or
 tokens into issues. A missing prerequisite is a blocker to report, not permission
 for an agent to install it.
 
+## Teammate ownership and messageboard
+
+Use the [team roster](docs/project.md#team-responsibility): Teammate A is Losera,
+the lead/integrator; Teammate B's name is pending for context/evidence review;
+Teammate C's name is pending for the contributor walkthrough. These slots do not
+assign unnamed people or grant claims.
+
+Each claimed issue has exactly one accountable human owner, written as
+`Teammate A - Losera`, for example. An unclaimed issue remains `Unassigned` with
+its proposed slot and name pending. Keep the agent in a separate `Agent/session`
+field: record its harness, available version, session/task name, and active or
+stopped status. A teammate may own several issues; each path/component still has
+one active writer across all sessions and worktrees.
+
+The issue body is the messageboard's current assignment and state. Use these
+fields from the [task template](.github/ISSUE_TEMPLATE/task.md):
+
+```text
+Human owner:
+Agent/session:
+State:
+Approved scope:
+Branch/worktree:
+Acceptance:
+Next action / blocker:
+```
+
+Keep the objective, dependencies, explicit claim approval, comment permission,
+verification evidence, and handoff sections too. An owner name alone does not
+approve proposed paths. `Approved scope` remains pending until the lead grants
+the claim. The lead controls Ready/Doing/Blocked/Review/Done transitions; Done
+means checked, explained, reviewed, and integrated. An agent reports observed
+progress and proposes a state change to the lead rather than granting itself
+edit authority or declaring completion.
+
+Dated comments preserve progress, evidence, blockers, and handoffs; posting still
+requires authorization for that issue. Update the body through the lead when
+the current owner, scope, state, or session changes. Preserve earlier comments
+as history. Re-read the body and comments at launch, resume, scope change,
+review, and handoff; sessions do not poll or synchronize automatically.
+
+On a session stop or replacement, save a handoff and mark the old session
+stopped before recording the new session. Preserve the human owner and approved
+scope; an interruption or inactive agent does not release the claim. Only the
+lead may transfer it after confirming the previous writer stopped.
+
+Labels `teammate-a`, `teammate-b`, and `teammate-c` provide slot filters. The
+named owner field is authoritative; a label grants neither ownership nor edit
+authority. Leave GitHub assignees empty for unnamed teammates. Before editing an
+existing issue, refresh its body, title, labels, state, and assignees; preserve
+unrelated metadata and stop if another writer changes it during preparation.
+
 ## Claim work
 
 The lead is the single dispatcher. A human owner is accountable for a task;
@@ -113,9 +165,13 @@ Paste a launch instruction after filling the actual issue and approved paths:
 ```text
 Read AGENTS.md and docs/status.md. Confirm your directory and branch.
 Read the current issue and comments supplied with this task.
-Human owner: <name>. Issue: <URL>. Approved claim: <lead's record>.
-Allowed paths: <paths>. Objective: <bounded outcome>.
+Human owner: Teammate <letter> - <name>. Issue: <URL>.
+Agent/session: <harness/version; session/task name; active>.
+State: <lead-recorded state>. Approved claim: <lead's record>.
+Approved scope: <exact paths/components>. Objective: <bounded outcome>.
+Branch/worktree: <branch and absolute worktree path>.
 Acceptance: <existing command or observable walkthrough>.
+Next action / blocker: <next step or current blocker>.
 You may append progress/evidence/handoff comments only to this issue.
 Do not claim/reassign/close issues, expand scope, or edit architecture/schemas.
 Stop for human semantic review before substantive commits or merges.
@@ -242,6 +298,7 @@ commenting is not authorized/available:
 
 ```text
 Objective / human owner:
+Agent/session / state:
 Issue / approved scope:
 Branch / base SHA / head SHA / worktree:
 Current state, including staged/unstaged/untracked files:
@@ -250,7 +307,7 @@ Verification commands, results, and artifact locations:
 Verification still needed:
 Failed approaches / discoveries:
 Unresolved risks / blockers:
-Next recommended action:
+Next action / blocker:
 ```
 
 Leave unfinished work in its worktree unless the owner authorizes another safe
