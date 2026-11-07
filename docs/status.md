@@ -1,11 +1,19 @@
 # Current status and handoff
 
-## Integration checkpoint: November 7, 2026
+## Bootstrap checkpoint: November 7, 2026 (published)
 
 Objective: bootstrap LANTERN's context transfer and engineering collaboration.
 Branch: `docs/bootstrap`; worktree: sibling `LANTERN-bootstrap`.
 Base: `ff51b9f2e8542f44ab80774d462f8cc766fc358b`.
 This is a dated checkpoint, not a replacement for live issue state.
+
+**Resolved after review.** The paragraphs below describe this bootstrap as an
+uncommitted draft, which was true when they were written. The lead approved the
+semantic diff, the reviewed patch was committed as
+`da4df1eadc6bff3ad501e6a7cccedf12888bb420`, and pull request 4 merged it to
+`main` at `79d7a4e1a3fce7f719cfeb3bc588e11e44b0f3e6`. Issue 1 records the
+approval. Read the pre-commit wording below as history, and the application
+checkpoint further down as current state.
 
 Initial inspection found a clean local `main` at `ef077f3` and newer GitHub main
 at `ff51b9f`. After fetching and inspecting history, main was fast-forwarded
@@ -46,6 +54,50 @@ runtime acceptance entries must not be treated as passes.
 
 Documentation validation does not prove Alpha connectivity, harness
 interoperability, application correctness, or reduced bias.
+
+## Application skeleton checkpoint: November 7, 2026
+
+Objective: the initial backend and frontend structure for the application.
+Branch: `feat/app-skeleton`; worktree: sibling `LANTERN-app`.
+Base: `79d7a4e1a3fce7f719cfeb3bc588e11e44b0f3e6`.
+
+The lead approved four gated decisions before implementation: a zero-dependency
+static frontend, a generated file export rather than a service, contracts plus
+deterministic parts rather than pure structure, and provisional version-0
+formats. No model, revision, environment, rubric, or tool contract is approved,
+and none is selected here. See [proposed formats](contracts.md).
+
+Implemented because deterministic and architecture-free: condition expansion,
+the failure taxonomy, append-only recording with explicit unknowns, oracle
+trace emission with strict field sets, paired analysis, and the export
+projection. Left as seams that raise rather than return: prompt rendering,
+output parsing and grading, the model adapter, and tool execution.
+
+The runner emits traces in the design oracle's vocabulary and never decides
+acceptance. The oracle's handoff rules out a Python state machine written to
+claim conformance, so `oracle_conformance` stays `NOT_RUN`.
+
+| Lane | Status | Evidence or limitation |
+| --- | --- | --- |
+| Application checker self-tests | Passed | `python3 tools/check_app.py --self-test`: 15 tests; each deliberately breaks one rule and confirms the lane reports it |
+| Application skeleton checks | Passed | `python3 tools/check_app.py`: 14 modules imported, 22 required files, 5 seams refusing, 5 malformed events rejected, 11 page fields cross-checked against the export |
+| Bootstrap documentation checks | Passed | `python3 tools/check_bootstrap.py`: 15 documents, 87 links, 22 shell examples, 3 JSON examples; 38 external URLs not fetched |
+| Emitted trace judged by the oracle | Observed, one trace | `python3 tools/check_app.py --oracle .../oracle` accepted one trace built from the synthetic fixture, and its coverage verdict matched the runner's independently computed pending attempt. No injected faults; the oracle is not an independent checker of this Python; this is not a conformance lane |
+| Frontend rendering | Passed local preview | Chromium 148 headless rendered `frontend/index.html` from a `file://` URL; screenshots inspected in dark and light palettes, and a scratch copy driving one row click confirmed the attempt detail, provenance, and never-measured fields render. Other browsers not tested |
+| Design-oracle conformance | Not run | No comparison of exported traces, receipts, and final simulated ledger against the oracle under dropped completions, late results, and retries |
+| Prompt, model, parser, tool seams | Not run by design | Each raises `NotImplementedError`; no model was executed by any command |
+| Alpha inference, serving, networking, Pi subject | Not tested | Unchanged by this branch |
+| Rubric, case format, cue inventory | Not agreed | Team agreement still required before parallel product work |
+| Semantic review of this branch | Pending human review | Required before commit and before any merge |
+
+The example case is fictional and says so in its `status` field. Every record
+in `fixtures/attempts/example.jsonl` carries `synthetic: true`, the checker
+refuses a line that does not, and the export refuses to label an all-synthetic
+dataset as anything else. No model produced any of it.
+
+A coherent skeleton can still measure the wrong thing. These lanes establish
+module coherence, seam refusal, the counting rules, export/page agreement, and
+an offline frontend. They establish nothing about the experiment's conclusions.
 
 ## First bounded work and ownership
 

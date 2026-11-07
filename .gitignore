@@ -1,0 +1,9 @@
+# Python bytecode. The runner is standard-library only and is run from the
+# repository root; nothing here is a build product worth keeping.
+__pycache__/
+*.py[cod]
+
+# Generated check reports (tools/check_app.py --report). Evidence belongs in
+# docs/status.md and in the pull request, not in an untracked JSON file that
+# can silently go stale.
+/reports/

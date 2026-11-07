@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LANTERN evidence view</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="masthead-text">
+    <h1>LANTERN</h1>
+    <p class="tagline">Does the same evidence, presented differently, change the recommendation?</p>
+  </div>
+  <div class="masthead-meta">
+    <span class="chip" id="label-chip">loading</span>
+    <dl class="meta-grid">
+      <dt>Lane</dt><dd id="meta-lane">&mdash;</dd>
+      <dt>Generated</dt><dd id="meta-generated">&mdash;</dd>
+      <dt>Oracle conformance</dt><dd id="meta-conformance">&mdash;</dd>
+      <dt>Schema</dt><dd id="meta-schema">&mdash;</dd>
+    </dl>
+  </div>
+</header>
+
+<noscript><p class="notice">This page renders the export with JavaScript. Read
+<code>data/export.json</code> directly if scripting is unavailable.</p></noscript>
+
+<div id="load-error" class="notice" hidden></div>
+
+<main>
+  <section class="pane" id="pane-comparison">
+    <h2>1 &middot; Comparison</h2>
+    <p class="pane-note">A flip is an observed difference between two recorded
+    choices. No causal or fairness claim follows from it.</p>
+    <div class="verdict-banner" id="effect-banner"></div>
+    <div class="tiles" id="comparison-tiles"></div>
+    <h3>Framing-only pairs</h3>
+    <div class="table-scroll"><table id="framing-table"></table></div>
+    <h3>Correction arm, reported separately</h3>
+    <p class="pane-note">The correction changes decision-relevant evidence by
+    design, so it is never folded into the framing-only comparison.</p>
+    <div class="table-scroll"><table id="correction-table"></table></div>
+    <div id="excluded-block"></div>
+  </section>
+
+  <section class="pane" id="pane-cases">
+    <h2>2 &middot; Cases and conditions</h2>
+    <p class="pane-note">Evidence relevance is declared in advance. Relying on
+    a reliable source can be rational, so authority is preserved rather than
+    stripped.</p>
+    <div id="cases"></div>
+  </section>
+
+  <section class="pane" id="pane-attempts">
+    <h2>3 &middot; Attempt records</h2>
+    <p class="pane-note">Every attempted run appears here, failures included.
+    Denominators are computed over this whole list.</p>
+    <div class="legend" id="outcome-legend"></div>
+    <div class="table-scroll"><table id="attempts-table"></table></div>
+    <div id="attempt-detail" class="detail-empty">Select an attempt to see its
+    raw output, parse signal, provenance, and unmeasured fields.</div>
+  </section>
+</main>
+
+<footer class="boundaries" id="boundaries">
+  <h2>Evidence boundaries</h2>
+  <div class="boundary-grid" id="boundary-grid"></div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

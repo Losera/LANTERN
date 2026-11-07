@@ -81,10 +81,14 @@ execution evidence. Record dispatch and completion separately if tools are later
 approved. Tool interfaces, IDs, sealing/reopening, and result formats need human
 schema/contract review before implementation.
 
-## Bootstrap verification is narrower
+## Offline verification is narrower
 
-[Documentation checks](../README.md#check-bootstrap-materials) validate links,
-metadata, and example syntax. Human source review checks interpretation. Neither
-establishes Alpha connectivity, harness interoperability, application correctness,
-fairness, internal causality, or reduced bias. Keep each evidence lane separate
-in the [status record](status.md).
+[The offline checks](../README.md#run-the-checks) validate links, metadata, and
+example syntax, and separately validate the application skeleton: that its
+modules import, its unapproved seams still refuse to run, its counting rules
+hold, and its export matches what the page reads. Human source review checks
+interpretation. None of this establishes Alpha connectivity, harness
+interoperability, application correctness, design-oracle conformance, fairness,
+internal causality, or reduced bias. A skeleton that is internally coherent can
+still be measuring the wrong thing. Keep each evidence lane separate in the
+[status record](status.md).
