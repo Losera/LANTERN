@@ -4,6 +4,12 @@
 Supported links: inline Markdown links/images and URL autolinks. Reference-style
 links and raw HTML anchors are rejected rather than silently left unchecked.
 Checks establish syntax and local structure, not source truth or runtime behavior.
+
+Scope: the Markdown Git tracks. A scratch note or draft left in the tree is the
+author's, not the repository's documentation, and must not fail its lane. Such
+files are reported as SKIPPED by name rather than ignored silently, because an
+unstaged new document would otherwise go unchecked unnoticed. A tree with no Git
+data, such as an export, is scanned whole.
 """
 
 from __future__ import annotations
@@ -99,17 +105,53 @@ def reject_constant(value: str) -> None:
     raise ValueError(f"non-JSON constant {value}")
 
 
-def check(root: Path, *, layout: bool = True) -> tuple[list[str], set[str], Counter]:
+def tracked_markdown(root: Path) -> set[Path] | None:
+    """Resolved paths of the Markdown files Git tracks under ``root``.
+
+    Returns ``None`` when ``root`` is not a Git work tree or Git is
+    unavailable, which means "no opinion": the caller then scans everything,
+    so the checker still works on an exported tree or a temporary fixture.
+
+    Staged-but-uncommitted files count as tracked, so a new document is
+    included as soon as it is `git add`-ed rather than only after a commit.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "-z", "--", "*.md"],
+            capture_output=True, timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode:
+        return None
+    return {
+        (root / name.decode("utf-8", "surrogateescape")).resolve()
+        for name in result.stdout.split(b"\0") if name
+    }
+
+
+def check(root: Path, *, layout: bool = True
+          ) -> tuple[list[str], set[str], Counter, list[str]]:
     root = root.resolve()
     errors: list[str] = []
     external: set[str] = set()
     counts: Counter = Counter()
     documents: dict[Path, tuple[str, str]] = {}
+    # Scratch notes and drafts left in the tree are not the repository's
+    # documentation and must not fail its lane. They are still reported by
+    # name: a new document that is merely unstaged would otherwise go
+    # unchecked without anyone noticing.
+    tracked = tracked_markdown(root)
+    skipped: list[str] = []
     for path in sorted(root.rglob("*.md")):
         if any(part in {".git", "node_modules", ".venv"}
                for part in path.relative_to(root).parts):
             continue
         relative = path.relative_to(root)
+        if tracked is not None and path.resolve() not in tracked:
+            skipped.append(str(relative))
+            counts["untracked Markdown skipped"] += 1
+            continue
         if not path.resolve().is_relative_to(root):
             errors.append(f"{relative}: file resolves outside repository")
             continue
@@ -218,7 +260,7 @@ def check(root: Path, *, layout: bool = True) -> tuple[list[str], set[str], Coun
             fields = dict(re.findall(r"^(name|description): (.+)$", header[1], re.MULTILINE))
             if fields.get("name") != name or not fields.get("description"):
                 errors.append(f"{path.relative_to(root)}: require matching name and description")
-    return errors, external, counts
+    return errors, external, counts, skipped
 
 
 class CheckerTests(unittest.TestCase):
@@ -234,6 +276,50 @@ class CheckerTests(unittest.TestCase):
 
     def errors(self, *, layout=False):
         return check(self.root, layout=layout)[0]
+
+    def git_repo(self):
+        """Make the fixture a real Git work tree, so tracking can be tested."""
+        env = {"GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null",
+               "PATH": os.environ.get("PATH", ""), "HOME": str(self.root)}
+        done = subprocess.run(["git", "init", "-q", str(self.root)],
+                              capture_output=True, env=env)
+        if done.returncode:
+            self.skipTest("git unavailable")
+        return env
+
+    def add(self, env, *names):
+        subprocess.run(["git", "-C", str(self.root), "add", "--", *names],
+                       check=True, capture_output=True, env=env)
+
+    def test_untracked_markdown_is_skipped_but_named(self):
+        """A scratch note in the tree must not fail the lane, or vanish from it."""
+        env = self.git_repo()
+        self.write("README.md", "# Fine\n")
+        self.write("scratch.md", "Pasted shell: [[ -f x ]] && echo hi\n")
+        self.add(env, "README.md")
+        errors, _, counts, skipped = check(self.root, layout=False)
+        self.assertEqual(errors, [])
+        self.assertEqual(skipped, ["scratch.md"])
+        self.assertEqual(counts["untracked Markdown skipped"], 1)
+        self.assertEqual(counts["documents"], 1)
+
+    def test_tracked_markdown_is_still_checked(self):
+        """Skipping must not become a way for a real document to escape."""
+        env = self.git_repo()
+        self.write("README.md", "Residual [[wiki link]] here\n")
+        self.add(env, "README.md")
+        errors, _, _, skipped = check(self.root, layout=False)
+        self.assertEqual(skipped, [])
+        self.assertTrue(any("residual Obsidian link" in e for e in errors), errors)
+
+    def test_non_repository_tree_is_scanned_whole(self):
+        """An exported tree has no Git data; scan everything rather than nothing."""
+        self.write("README.md", "Residual [[wiki link]] here\n")
+        self.assertIsNone(tracked_markdown(self.root))
+        errors, _, counts, skipped = check(self.root, layout=False)
+        self.assertEqual(skipped, [])
+        self.assertEqual(counts["documents"], 1)
+        self.assertTrue(any("residual Obsidian link" in e for e in errors), errors)
 
     def test_relative_encoded_and_duplicate_anchors(self):
         self.write("A B.md", "# Repeated\n# Repeated\n")
@@ -306,11 +392,15 @@ def main() -> int:
     if args.self_test:
         suite = unittest.defaultTestLoader.loadTestsFromTestCase(CheckerTests)
         return 0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1
-    errors, external, counts = check(args.root)
+    errors, external, counts, skipped = check(args.root)
     if args.list_external:
         print("\n".join(sorted(external)))
     for error in errors:
         print(f"ERROR: {error}", file=sys.stderr)
+    # Named, not silent: an unstaged new document is skipped here, and the
+    # author needs to see that rather than assume it was validated.
+    for name in skipped:
+        print(f"SKIPPED: {name}: untracked; `git add` it to include it in this lane")
     summary = ", ".join(f"{value} {key}" for key, value in counts.items())
     print(f"{'FAIL' if errors else 'PASS'}: {summary}; {len(external)} external URLs not fetched")
     return 1 if errors else 0

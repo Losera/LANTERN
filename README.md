@@ -71,7 +71,10 @@ git diff --check
 ```
 
 The documentation checker covers inline Markdown links and URL autolinks;
-reference-style or HTML links must be converted to that subset. Both checkers
+reference-style or HTML links must be converted to that subset. It checks the
+Markdown that Git tracks and lists anything untracked as `SKIPPED`, so a scratch
+note in the tree cannot fail the lane and a new document cannot pass it
+unchecked: `git add` the document to include it. Both checkers
 are offline and never execute shell examples. The application lane establishes
 that modules import, seams still refuse, the counting rules hold, the export
 matches what the page reads, and the frontend has no external dependency. It
