@@ -1,19 +1,11 @@
 # Current status and handoff
 
-## Bootstrap checkpoint: November 7, 2026 (published)
+## Integration checkpoint: November 7, 2026
 
 Objective: bootstrap LANTERN's context transfer and engineering collaboration.
 Branch: `docs/bootstrap`; worktree: sibling `LANTERN-bootstrap`.
 Base: `ff51b9f2e8542f44ab80774d462f8cc766fc358b`.
 This is a dated checkpoint, not a replacement for live issue state.
-
-**Resolved after review.** The paragraphs below describe this bootstrap as an
-uncommitted draft, which was true when they were written. The lead approved the
-semantic diff, the reviewed patch was committed as
-`da4df1eadc6bff3ad501e6a7cccedf12888bb420`, and pull request 4 merged it to
-`main` at `79d7a4e1a3fce7f719cfeb3bc588e11e44b0f3e6`. Issue 1 records the
-approval. Read the pre-commit wording below as history, and the application
-checkpoint further down as current state.
 
 Initial inspection found a clean local `main` at `ef077f3` and newer GitHub main
 at `ff51b9f`. After fetching and inspecting history, main was fast-forwarded
