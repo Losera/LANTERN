@@ -127,6 +127,63 @@ At implementation, issue 2's title/body still used the old provisional teammate
 A designation and issue 3 used B. Their migration to B/C and slot labels is
 prepared for rollout after this reviewed documentation reaches `main`.
 
+## Board reconciliation and merges: November 7, 2026
+
+Objective: reconcile the issue board against the repository's actual state and
+integrate the two reviewed documentation changes. `main` is `59b18e6`.
+
+| PR | Head | Merge commit | Merged, UTC |
+| --- | --- | --- | --- |
+| [PR 14](https://github.com/Losera/LANTERN/pull/14), checker reads Git-tracked Markdown | `0eccc2a` | `f33d1e5` | 22:56:37 |
+| [PR 23](https://github.com/Losera/LANTERN/pull/23), roster correction | `8498751` | `59b18e6` | 22:59:04 |
+
+| Lane | Status | Evidence or limitation |
+| --- | --- | --- |
+| Documentation self-tests, merged tree | Passed | `python3 tools/check_bootstrap.py --self-test`: 13 tests, up from ten; PR 14's three new tests assert that an untracked file is skipped and named, a tracked file still errors, and a tree without Git data is scanned whole |
+| Documentation checks, merged tree | Passed | `python3 tools/check_bootstrap.py`: 16 documents, 101 links, 27 shell examples, 3 JSON examples; 45 external URLs not fetched |
+| Application self-tests | Passed | `python3 tools/check_app.py --self-test`: 15 tests |
+| Application checks | Passed | `python3 tools/check_app.py`: PASS; `oracle_conformance` still `NOT_RUN` |
+| Alpha helper offline tests | Passed | `python3 tools/test_alpha_submit.py`: 18 tests; no real transfer, MFA, allocation, or inference |
+| Whitespace | Passed | `git diff --check` on the merged tree |
+| Lean design oracle under version control | Observed | 16 sources committed in the separate `lantern-formal` repository as `990d953`; `source_digest()` recomputes to `20c0e66a...957588c1`, matching `HANDOFF.md` and the stored report, so the commit is the verified revision. No remote; no off-machine copy. Proofs not replayed |
+| Semantic review of the merged documentation | Approved by lead | Both PRs were merged on the lead's explicit instruction |
+| Experiment result | None | Every record in `fixtures/attempts/` remains `synthetic: true`; the export's `effect` reads `none_measured` |
+
+These lanes were run on the merged tree rather than on either branch. They
+establish that the documentation subset validates and the skeleton still coheres.
+They establish nothing about Alpha connectivity, model behaviour, application
+correctness, design-oracle conformance, or reduced bias.
+
+Repository state recorded at the same time: the `main` checkout is clean, and an
+uncommitted `shfmt` reformat of `tools/alpha_submit.sh` that sat in it was
+reverted after a patch and a file copy were retained outside the repository. Two
+scratch briefs were moved out of the repository root, which is what had been
+failing the documentation lane before PR 14. Two worktrees remain in use:
+`/home/losera/LANTERN-checker` and `/tmp/LANTERN-alpha-shared-ssh`, the second
+holding uncommitted SSH connection-reuse work now tracked as issue 20.
+
+### Decision rules landed outside the review path
+
+`32c3938` added the "Decision Rules" section to [evaluation](evaluation.md),
+committed directly to `main` without a branch, pull request, or semantic review.
+It is inside issue 7's path claim and is its owner's own issue, so nothing was
+disturbed and the merges above were applied on top of it.
+
+This is the fourth concurrent-writer occurrence this day, after the three-way
+rewrite of this file, PR 13 merging while issue 10 was unclaimed, and the
+`tools/alpha_submit.sh` double edit. The path claim held each time; the
+branch-and-review step did not. Issue 22 carries the path-exclusivity map and
+this record.
+
+The section supplies the rubric wording, which is the first of issue 7's three
+parts. The option vocabulary and the declared-irrelevant cue inventory are not
+written, and `fixtures/cases/example-campus-transport.json` is unchanged, so that
+issue's acceptance is not met and its state is unchanged. Issue 8 moved to Ready
+because its owner holds both issues; issue 9 remains blocked on the option
+vocabulary alone, because a parser written against a guessed option set would
+misclassify valid choices.
+
+
 ## Next actions and unresolved gates
 
 The bootstrap no longer awaits its original commit, publication, or merge.
