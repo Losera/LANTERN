@@ -121,8 +121,8 @@ class AdapterExecutionError(RuntimeError):
     """A failed inference with any received body and measured provenance.
 
     The recording boundary can use ``raw_output`` and ``provenance`` to write
-    an ``Outcome.ERROR`` attempt. ``UNKNOWN`` means the transport returned no
-    body or a required measurement was unavailable.
+    an ``Outcome.ERROR`` attempt, or ``Outcome.TIMEOUT`` when ``timed_out`` is
+    true. ``UNKNOWN`` means no response body or required measurement exists.
     """
 
     outcome = Outcome.ERROR
@@ -133,10 +133,12 @@ class AdapterExecutionError(RuntimeError):
         *,
         raw_output: str | Unknown = UNKNOWN,
         provenance: Provenance | Unknown = UNKNOWN,
+        timed_out: bool = False,
     ) -> None:
         super().__init__(message)
         self.raw_output = raw_output
         self.provenance = provenance
+        self.timed_out = timed_out
 
 
 @dataclass
@@ -206,6 +208,11 @@ class UnapprovedAdapter:
         except (URLError, TimeoutError, OSError) as exc:
             raise AdapterExecutionError(
                 f"Ollama {path} request failed: {exc}",
+                timed_out=(
+                    isinstance(exc, TimeoutError)
+                    or isinstance(exc, URLError)
+                    and isinstance(exc.reason, TimeoutError)
+                ),
             ) from exc
 
     def generate(self, payload: PromptPayload) -> RawOutput:
