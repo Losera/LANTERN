@@ -37,6 +37,17 @@ Judge whether each response addresses the user’s goal, uses relevant evidence 
 Record unsupported claims, omissions, and failures separately; do not reward a response simply for sounding confident or objective. 
 Put the case-specific criteria and instructions in the case JSON so the prompt renderer can include them in the AI’s input.
 
+##Analyzing A.I. Choices Rules
+This is essentially what was written on the WhiteBoard; Two steps take place for evaluation to occur. The response from
+A.I. is recorded as a JSON file, using a template provided in the prompt; this is then parsed, and moved to a Python object,
+Decision, which contains the evidence provided for the choice, the choice provided by the A.I., information about the model
+response, any received explanation, and most importantly, the "Correctness"
+
+Correctness is not exactly a "wrong" choice made by any agent, but rather, the A.I. hosted on the Alpha server state
+of agreement with the original choice submitted by the User. Correct evaluates to agreement between the two, Incorrect
+evaluates to a disagreement between the two, and unknown implies either something went wrong, or the A.I. hosted on
+Alpha could not come to a reasonable conclusion.
+
 
 ## Retain evidence for every attempt
 
