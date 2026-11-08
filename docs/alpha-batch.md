@@ -7,6 +7,37 @@ and CLI claims; C retains the local model adapter and CI claims.
 
 ## Prepare and review
 
+### Explicit fictional-case pilot
+
+The lead approved an ungraded Alpha pilot on November 8, 2026. Use `--pilot`
+to run the fictional transport case without a grading key. A pilot retains
+real model responses with `synthetic: false`, but it does not establish a
+result on an approved real-world case. Correctness remains `unknown`.
+
+```bash
+python3 -m runner.alpha_batch prepare --pilot \
+  --cases fixtures/cases \
+  --approval /path/to/pilot-approval.md \
+  --host YOUR_USERNAME@alpha1.empireai.edu \
+  --out /path/to/durable/new-pilot
+```
+
+Pilot mode requires a non-empty written approval and refuses `--grading-key`.
+It freezes `purpose: "pilot"` in the existing version-0 batch envelope. The
+executor keeps the same pinned model, twenty-attempt schedule and resource
+bounds. The coordinator imports the matching pilot bundle without calling
+grading and labels its export as a fictional-case pilot. Standalone import
+requires its own explicit `--pilot` flag. Each pilot dataset accepts only its
+own run identity; do not combine it with local Ollama or experimental data.
+
+Submission still requires review of the exact frozen preflight and its hash.
+Use the existing `submit` and `resume` commands below. Preserve malformed or
+truncated output instead of changing the parser or replacing attempts. Unlike
+the local Ollama path, this Alpha executor has no JSON decoding constraint.
+The 128-token output budget may prevent complete JSON responses.
+
+### Default experimental mode
+
 Use Python 3.10 or newer on Linux or macOS, Bash, and existing SSH access.
 The coordinator uses `fcntl` advisory locks and is not supported by native
 Windows Python. Authentication remains human-operated. Keep the run directory

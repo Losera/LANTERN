@@ -110,30 +110,35 @@ def verify_inputs(run: Path, state: dict, bundle: Path | None = None) -> None:
             raise BatchError(f"Local implementation changed since preparation: {name}")
 
 
-def interpretation_ready(case) -> None:
+def interpretation_ready(case, *, pilot: bool = False) -> None:
     # This synthetic probe exercises the owned interfaces, never real output.
     raw = json.dumps(dict(option_id=case.options[0].id, evidence_ids=[], explanation=""))
     try:
         decision = parsing.parse(raw, case)
         if classify(decision.signal) is not Outcome.DECISION:
             raise BatchError("Parser does not accept the agreed JSON response shape")
-        parsing.grade(decision, case)
+        if not pilot:
+            parsing.grade(decision, case)
     except NotImplementedError as exc:
         raise BatchError("B's parser/grader is not ready; no batch prepared") from exc
 
 
-def prepare(*, cases_dir: Path, grading_key: Path, approval: Path, out: Path,
-            host: str) -> dict:
+def prepare(*, cases_dir: Path, grading_key: Path | None, approval: Path, out: Path,
+            host: str, pilot: bool = False) -> dict:
     if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.@-]*", host):
         raise BatchError("Invalid Alpha host")
     if out.exists() or out.is_symlink():
         raise BatchError("Choose a new durable run directory")
     cases = load_cases(cases_dir)
-    if len(cases) != 1 or "FICTIONAL_EXAMPLE" in cases[0].status.upper():
+    if len(cases) != 1 or (not pilot and "FICTIONAL_EXAMPLE" in cases[0].status.upper()):
         raise BatchError("Exactly one explicitly approved case is required")
     case = cases[0]
-    interpretation_ready(case)
-    for path in (grading_key, approval):
+    if pilot and grading_key is not None:
+        raise BatchError("Pilot mode does not accept a grading key")
+    if not pilot and grading_key is None:
+        raise BatchError("A grading key is required for experimental mode")
+    interpretation_ready(case, pilot=pilot)
+    for path in ((approval,) if pilot else (grading_key, approval)):
         if path.is_symlink() or not path.is_file() or not path.read_text().strip():
             raise BatchError("A non-empty grading key and approval record are required")
     files = sorted(cases_dir.glob("*.json"))
@@ -162,7 +167,7 @@ def prepare(*, cases_dir: Path, grading_key: Path, approval: Path, out: Path,
     inputs.mkdir()
     (inputs / "cases").mkdir()
     copies = {
-        "cases/case.json": files[0], "grading-key.md": grading_key,
+        "cases/case.json": files[0],
         "approval.md": approval,
         "job.sbatch": ROOT / "examples/alpha-batch.sbatch",
         "alpha-batch-executor.py": ROOT / "examples/alpha-batch-executor.py",
@@ -170,6 +175,8 @@ def prepare(*, cases_dir: Path, grading_key: Path, approval: Path, out: Path,
         "inference-result.json": ROOT / "evidence/alpha/job-175794/inference-result.json",
         "installed-packages.txt": ROOT / "evidence/alpha/job-175794/installed-packages.txt",
     }
+    if not pilot:
+        copies["grading-key.md"] = grading_key
     for name, source in copies.items():
         shutil.copyfile(source, inputs / name)
     if load_cases(inputs / "cases") != cases:
@@ -177,7 +184,8 @@ def prepare(*, cases_dir: Path, grading_key: Path, approval: Path, out: Path,
     atomic_json(inputs / "policy.json", POLICY)
     sources = [*sorted((ROOT / "runner").glob("*.py")), ROOT / "tools/alpha_submit.sh"]
     atomic_json(inputs / "local-source.json", {str(p.relative_to(ROOT)): digest(p) for p in sources})
-    batch = dict(format="lantern.alpha.batch", schema_version=0, purpose="experimental",
+    batch = dict(format="lantern.alpha.batch", schema_version=0,
+                 purpose="pilot" if pilot else "experimental",
                  synthetic=False, run_id=run_id, identity=IDENTITY.copy(), attempts=[], evidence=[])
     for index, (condition, payload) in enumerate(zip(conditions, payloads)):
         batch["attempts"].append(dict(attempt_id=f"attempt-{index:02d}", case_id=case.id,
@@ -188,7 +196,9 @@ def prepare(*, cases_dir: Path, grading_key: Path, approval: Path, out: Path,
     atomic_json(inputs / "batch.json", batch)
     lines = ["# Alpha preflight freeze", "", f"Run: {run_id}", f"Host: {host}",
              "", "Twenty attempts; at least ten readable decisions; no replacement attempts.",
-             "Correctness is graded separately. All attempted failures stay in the denominator.",
+             ("ALPHA PILOT: fictional cases permitted; correctness remains unknown; no grading."
+              if pilot else "Correctness is graded separately."),
+             "All attempted failures stay in the denominator.",
              "Fresh process per attempt; throughput includes model loading.", "",
              "## Policy", "", "```json", json.dumps(POLICY, indent=2), "```", "",
              "## Input hashes", ""]
@@ -198,7 +208,7 @@ def prepare(*, cases_dir: Path, grading_key: Path, approval: Path, out: Path,
     lines += ["", "## Exact schedule", ""]
     lines += [f"- {a['attempt_id']}: `{a['condition_id']}`; prompt `{a['prompt_sha256']}`"
               for a in batch["attempts"]]
-    lines += ["", "Review batch.json for exact prompts and approval.md/grading-key.md for the human decisions.",
+    lines += ["", "Review batch.json for exact prompts and approval.md for the human decisions.",
               "Tokenized prompt lengths and environment identity are checked on Alpha before any attempt.",
               "Outcome precedence: timeout > error > truncated > refusal > malformed > invalid_choice > decision.",
               "Refusal classification is disabled for this experiment.", ""]
@@ -325,8 +335,9 @@ def finish(run: Path, state: dict) -> dict:
             raise BatchError("Missing or inconsistent execution timing")
     dataset = run / "dataset"
     dataset.mkdir(exist_ok=True)
+    pilot = batch["purpose"] == "pilot"
     report = alpha_import.import_bundle(bundle, cases_dir=bundle / "cases",
-                                       attempts_path=dataset / "attempts.jsonl")
+                                       attempts_path=dataset / "attempts.jsonl", pilot=pilot)
     atomic_json(dataset / "import-report.json", report.as_dict())
     records = (list(read_attempts(dataset / "attempts.jsonl"))
                if (dataset / "attempts.jsonl").exists() else [])
@@ -337,9 +348,11 @@ def finish(run: Path, state: dict) -> dict:
     analysis = summarize(records, conditions)
     write_export(dataset / "export.json", build_export(cases=cases, conditions=conditions,
         records=records, analysis=analysis, label=("Synthetic Alpha workflow fixture"
-            if batch["synthetic"] else "Alpha fixed twenty-attempt experiment")))
+            if batch["synthetic"] else ("Alpha fictional-case pilot — correctness unknown"
+                if pilot else "Alpha fixed twenty-attempt experiment"))))
     decisions = sum(row["outcome"] == "decision" for row in records)
-    summary = dict(synthetic=batch["synthetic"], scheduled=20, attempted=len(records), decisions=decisions,
+    summary = dict(purpose=batch["purpose"], synthetic=batch["synthetic"],
+                   scheduled=20, attempted=len(records), decisions=decisions,
                    not_started=list(report.not_started),
                    gate_passed=len(records) == 20 and decisions >= 10,
                    analysis=analysis.as_dict(), source_hashes=source_hashes,
@@ -382,8 +395,11 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     p = commands.add_parser("prepare", help="freeze local inputs; no network or model")
-    for name in ("cases", "grading-key", "approval", "out", "host"):
+    for name in ("cases", "approval", "out", "host"):
         p.add_argument("--" + name, required=True)
+    p.add_argument("--grading-key", help="required for experimental mode; forbidden with --pilot")
+    p.add_argument("--pilot", action="store_true",
+                   help="explicit ungraded pilot; permits a fictional case")
     p = commands.add_parser("submit", help="human-operated: upload and submit exactly once")
     p.add_argument("--run", required=True)
     p.add_argument("--approved-preflight-sha256", required=True)
@@ -392,8 +408,10 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == "prepare":
-            report = prepare(cases_dir=Path(args.cases), grading_key=Path(args.grading_key),
-                             approval=Path(args.approval), out=Path(args.out).absolute(), host=args.host)
+            report = prepare(cases_dir=Path(args.cases),
+                             grading_key=Path(args.grading_key) if args.grading_key else None,
+                             approval=Path(args.approval), out=Path(args.out).absolute(),
+                             host=args.host, pilot=args.pilot)
         elif args.command == "submit":
             report = submit(Path(args.run).absolute(), args.approved_preflight_sha256)
         else:

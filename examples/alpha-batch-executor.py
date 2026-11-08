@@ -65,7 +65,7 @@ def validate_batch(root, batch):
     expected = dict(execution_site="alpha_batch", model_id=MODEL, model_revision=REVISION,
                     harness="transformers", harness_version="4.57.1")
     if (batch["format"] != "lantern.alpha.batch" or batch["schema_version"] != 0
-            or batch["synthetic"] is not False or batch["purpose"] != "experimental"
+            or batch["synthetic"] is not False or batch["purpose"] not in ("experimental", "pilot")
             or identity != expected):
         raise ValueError("Not the approved Alpha experimental identity")
     attempts = batch["attempts"]
