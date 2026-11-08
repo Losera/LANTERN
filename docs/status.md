@@ -80,7 +80,11 @@ fifth and is recorded on that issue. The path claim
 held; the branch-and-review step did not. Three of the suites that detect this class
 of regression -- `test_alpha_parsing.py`, `test_alpha_import.py`, and
 `test_alpha_diagnostic.py` -- are not in CI, which is why the push landed green at the
-PR gate and red only on `main`. Adding them is issue 18's remaining work.
+PR gate and red only on `main`. All three now run in CI, together with the two
+coordinator suites PR 44 added, under the `Alpha offline suites` job. Reapplying
+`e5cf45d`'s `grade` to a scratch copy of the merged tree fails
+`test_alpha_parsing.py` and `test_alpha_import.py`, so the lane is shown to catch
+this regression rather than merely to pass.
 
 ## Alpha runtime evidence: November 8, 2026 UTC
 
