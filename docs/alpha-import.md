@@ -4,6 +4,14 @@ This is the importer milestone of issue 33. It reads a complete, already-fetched
 experimental bundle and appends runner attempt records. It does not submit,
 monitor, or fetch jobs, run inference, move evidence, or install dependencies.
 
+An explicitly approved ungraded pilot uses `purpose: "pilot"` and requires
+`--pilot` on the import command (`pilot=True` for `import_bundle`). This mode
+never calls grading and records correctness as `unknown`. It accepts only
+matching pilot bundles and a dataset belonging to that one ungraded run.
+Default imports still require `purpose: "experimental"` and the existing
+grading readiness gate. Diagnostics remain refused in both modes. See the
+[pilot operator instructions](alpha-batch.md#explicit-fictional-case-pilot).
+
 | Artifact | Purpose |
 | --- | --- |
 | `batch.json` | Exact prompts and attempt identities prepared before execution |
@@ -60,7 +68,7 @@ from envelope validation and is not implemented by the importer.
 | --- | --- |
 | `format` | Exactly `lantern.alpha.batch` |
 | `schema_version` | Integer `0`, proposed and unstable |
-| `purpose` | Exactly `experimental`; diagnostics are refused |
+| `purpose` | `experimental` by default; `pilot` only with explicit `--pilot` import; diagnostics are refused |
 | `synthetic` | Boolean; true for every offline fixture |
 | `run_id` | Non-empty identifier shared by this batch's records |
 | `identity` | Exact model/runtime identity, defined below |

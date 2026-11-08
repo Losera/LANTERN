@@ -11,21 +11,24 @@
 
 <header class="masthead">
   <div class="masthead-text">
-    <h1>LANTERN</h1>
-    <p class="tagline">Does the same evidence, presented differently, change the
-    recommendation? One case, five arms, one comparison you can audit.</p>
+    <p class="eyebrow">Recorded experiment results</p>
+    <h1>LANTERN<span class="brand-dot" aria-hidden="true">.</span></h1>
+    <p class="tagline">Can irrelevant framing change an AI recommendation? Compare the original prompt, a repeat, a neutral addition, framing, and a correction.</p>
   </div>
   <div class="masthead-meta">
     <div class="chips">
       <span class="chip" id="label-chip">loading</span>
       <span class="chip" id="synthetic-chip" hidden></span>
     </div>
+    <details class="dataset-details">
+    <summary>Dataset details</summary>
     <dl class="meta-grid">
       <dt>Lane</dt><dd id="meta-lane">&mdash;</dd>
       <dt>Generated</dt><dd id="meta-generated">&mdash;</dd>
       <dt>Oracle conformance</dt><dd id="meta-conformance">&mdash;</dd>
       <dt>Schema</dt><dd id="meta-schema">&mdash;</dd>
     </dl>
+    </details>
     <fieldset class="theme-toggle">
       <legend>Theme</legend>
       <label><input type="radio" name="theme" value="auto" checked> Auto</label>
@@ -36,11 +39,11 @@
 </header>
 
 <nav class="lt-nav section-nav" aria-label="Sections">
-  <a href="#comparison">Comparison</a>
+  <a href="#comparison">Findings</a>
   <a href="#case">Case</a>
-  <a href="#conditions">Conditions</a>
-  <a href="#attempts">Attempts</a>
-  <a href="#boundaries">Boundaries</a>
+  <a href="#conditions">Prompt versions</a>
+  <a href="#attempts">Responses</a>
+  <a href="#boundaries">Limits</a>
 </nav>
 
 <noscript><p class="notice">This page renders the export with JavaScript. Read
@@ -51,41 +54,35 @@
 
 <main>
   <section class="pane" id="comparison">
-    <h2>Comparison</h2>
-    <p class="pane-note">A flip is an observed difference between two recorded
-    choices. No causal or fairness claim follows from it.</p>
+    <div id="finding-summary" class="finding-summary"></div>
+    <h2>Did the prompt change the choice?</h2>
+    <p class="pane-note">We compare the original and framing prompts for each case. A changed choice is an observation; it does not by itself establish bias or explain the cause.</p>
     <div class="verdict-banner" id="effect-banner"></div>
     <div class="tiles" id="comparison-tiles"></div>
 
     <div class="pair-columns">
       <div>
-        <h3>Framing-only pairs</h3>
+        <h3>Original prompt vs framing prompt</h3>
         <div class="table-scroll"><table id="framing-table"></table></div>
       </div>
       <div>
-        <h3>Correction arm, reported separately</h3>
+        <h3>Original prompt vs correction prompt</h3>
         <div class="table-scroll"><table id="correction-table"></table></div>
-        <p class="pane-note">The correction changes decision-relevant evidence
-        by design, so it is never folded into the framing-only comparison.</p>
+        <p class="pane-note">Correction is a separate test: it explicitly restates the evidence after framing. Its result is not included in the framing comparison.</p>
       </div>
     </div>
     <div id="excluded-block"></div>
   </section>
 
   <section class="pane" id="arms">
-    <h2>Per-arm counts</h2>
-    <p class="pane-note">Denominators include every attempted run, failures
-    included. Readable decisions are counted separately from correctness, which
-    the runner does not grade yet.</p>
+    <h2>What each prompt version produced</h2>
+    <p class="pane-note">Each row shows a prompt version, the choices it produced, and every attempted call, including errors. A usable choice is a response we could read, not proof that the answer is correct.</p>
     <div class="table-scroll"><table id="arms-table"></table></div>
   </section>
 
   <section class="pane" id="coverage">
-    <h2>Coverage &mdash; not task success</h2>
-    <p class="pane-note">Coverage asks whether every registered attempt reached
-    a definitive outcome. A fully recorded failure is covered; an empty run is
-    vacuously covered. A timeout is not, because its fate is genuinely
-    unknown.</p>
+    <h2>Were all model calls accounted for?</h2>
+    <p class="pane-note">This checks whether each call ended in a known outcome, including recorded errors. It does not measure answer quality. A timeout remains unknown; an empty run can have complete accounting without testing anything.</p>
     <div class="tiles" id="coverage-tiles"></div>
     <div class="table-scroll"><table id="coverage-table"></table></div>
     <h3>How these numbers are counted</h3>
@@ -93,30 +90,24 @@
   </section>
 
   <section class="pane" id="case">
-    <h2>Case and evidence</h2>
-    <p class="pane-note">Evidence relevance is declared in advance. Relying on
-    a reliable source can be rational, so authority is preserved rather than
-    stripped.</p>
+    <h2>What the model was asked to decide</h2>
+    <p class="pane-note">Read the question, available options, and supplied evidence. The team declared which cues were irrelevant before running the comparison; source descriptions were retained.</p>
     <div id="cases"></div>
   </section>
 
   <section class="pane" id="conditions">
-    <h2>Condition matrix</h2>
-    <p class="pane-note">Eligibility is computed, not chosen. Only baseline and
-    framing are eligible for the framing-only comparison, and an excluded
-    condition is always listed with its reason.</p>
+    <h2>Prompt versions and exact input hashes</h2>
+    <p class="pane-note">The five versions test different changes to the prompt. Only the original and framing versions enter the framing comparison. Exact repeats, neutral additions and corrections are shown separately.</p>
     <div id="condition-sets"></div>
   </section>
 
   <section class="pane" id="attempts">
-    <h2>Attempt records</h2>
-    <p class="pane-note">Every attempted run appears here, failures included.
-    Select an attempt to see its raw output, parse signal, provenance, and
-    unmeasured fields.</p>
+    <h2>Inspect the recorded model responses</h2>
+    <p class="pane-note">Every call is listed, including errors. Select a response ID to read the exact model output, its choice, the model settings, and anything that was not measured.</p>
     <div class="legend" id="outcome-legend"></div>
     <div class="filter-bar">
       <div class="field">
-        <label for="filter-arm">Arm</label>
+        <label for="filter-arm">Prompt version</label>
         <select class="input" id="filter-arm"></select>
       </div>
       <div class="field">
@@ -126,9 +117,7 @@
       <button type="button" class="lt-btn ghost" id="filter-reset">Clear filters</button>
       <p class="filter-count" id="filter-count" aria-live="polite"></p>
     </div>
-    <p class="pane-note filter-caveat">Filtering changes which rows are listed
-    here. It never changes the counts above: those are the export's own
-    denominators over every recorded attempt.</p>
+    <p class="pane-note filter-caveat">Filters only shorten this list. The findings and totals above still include every recorded call.</p>
     <div class="table-scroll"><table id="attempts-table"></table></div>
     <div id="attempt-detail" class="detail-empty" tabindex="-1" aria-live="polite">Select
     an attempt to see its raw output, parse signal, provenance, and unmeasured
@@ -137,7 +126,7 @@
 </main>
 
 <footer class="boundaries" id="boundaries">
-  <h2>Evidence boundaries</h2>
+  <h2>What these results do not establish</h2>
   <div class="boundary-grid" id="boundary-grid"></div>
 </footer>
 
