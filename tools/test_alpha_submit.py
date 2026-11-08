@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -26,6 +27,11 @@ args = sys.argv[1:]
 with open(os.environ['MOCK_LOG'], 'a') as log:
     log.write(json.dumps({'name': name, 'args': args, 'cwd': os.getcwd()}) + '\n')
 remote = Path(os.environ['MOCK_REMOTE'])
+
+if name in ('ssh', 'scp'):
+    while args[:1] == ['-o']:
+        assert len(args) >= 2, args
+        args = args[2:]
 
 if name == 'ssh':
     assert args[0] == '--' and args[1] == 'tester@alpha.invalid', args
@@ -99,6 +105,7 @@ class AlphaSubmitTests(unittest.TestCase):
         self.env.update({
             "PATH": str(self.bin) + os.pathsep + os.environ["PATH"],
             "ALPHA_HOST": "tester@alpha.invalid",
+            "ALPHA_CONTROL_PATH": "",
             "MOCK_REMOTE": str(self.remote),
             "MOCK_LOG": str(self.log),
         })
@@ -123,6 +130,124 @@ class AlphaSubmitTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn("Usage:", result.stdout)
         self.assertEqual(self.calls(), [])
+
+    def assert_original_connection_arguments(self, control_path):
+        # Freeze the SSH/SCP argv from pre-multiplexing helper eae89e8.
+        # Only the generated run ID and fixture paths are filled at runtime;
+        # no arguments are stripped or normalized before comparison.
+        if control_path is None:
+            self.env.pop("ALPHA_CONTROL_PATH", None)
+            self.assertNotIn("ALPHA_CONTROL_PATH", self.env)
+        else:
+            self.env["ALPHA_CONTROL_PATH"] = control_path
+        package = self.local / "runner"
+        package.mkdir()
+        (package / "example.py").write_text("# fixture only\n")
+        submitted = self.run_helper("submit", self.job, "runner")
+        self.assertEqual(submitted.returncode, 0, submitted.stderr)
+        remote_dir = "lantern/runs/" + self.run_id(submitted)
+        for job in ("12345", "12345;alpha"):
+            status = self.run_helper("status", job)
+            self.assertEqual(status.returncode, 0, status.stderr)
+        fetched = self.run_helper("fetch", self.run_id(submitted), "snapshot")
+        self.assertEqual(fetched.returncode, 0, fetched.stderr)
+
+        def original_status(cluster_option):
+            return (
+                "query_status=0\n"
+                f"squeue --jobs='12345' {cluster_option} || query_status=1\n"
+                "sacct --allocations --jobs='12345' --format=JobID,State,ExitCode "
+                f"{cluster_option} || query_status=1\n"
+                "exit $query_status"
+            )
+
+        host = "tester@alpha.invalid"
+        expected = [
+            ("ssh", ["--", host, f"mkdir -p lantern/runs && mkdir '{remote_dir}'"]),
+            ("scp", ["--", str(self.job), f"{host}:{remote_dir}/job.sbatch"]),
+            ("scp", ["-r", "--", "./runner", f"{host}:{remote_dir}/"]),
+            ("ssh", ["--", host, f"cd '{remote_dir}' && sbatch --parsable job.sbatch > submission.txt && cat submission.txt"]),
+            ("ssh", ["--", host, original_status("")]),
+            ("ssh", ["--", host, original_status("--clusters='alpha'")]),
+            ("scp", ["-r", "--", f"{host}:{remote_dir}/.", "./snapshot/"]),
+        ]
+        actual = [(row["name"], row["args"]) for row in self.calls()
+                  if row["name"] in ("ssh", "scp")]
+        self.assertEqual(actual, expected)
+        self.assertEqual(len(self.calls("sbatch")), 1)
+        self.assertEqual((self.local / "snapshot/submission.txt").read_text(), "12345\n")
+
+    def test_unset_control_path_preserves_original_connection_arguments(self):
+        self.assert_original_connection_arguments(None)
+
+    def test_empty_control_path_preserves_original_connection_arguments(self):
+        self.assert_original_connection_arguments("")
+
+    def test_shared_connection_used_for_submit_status_and_fetch(self):
+        # Spaces and shell metacharacters must remain inside one option value.
+        socket_path = str(self.root / "control socket;literal")
+        settings = {"ALPHA_CONTROL_PATH": socket_path}
+        package = self.local / "runner"
+        package.mkdir()
+        (package / "example.py").write_text("# fixture only\n")
+        submitted = self.run_helper("submit", self.job, package, **settings)
+        self.assertEqual(submitted.returncode, 0, submitted.stderr)
+        self.assertIn("Job ID: 12345", submitted.stdout)
+        status = self.run_helper("status", "12345;alpha", **settings)
+        self.assertEqual(status.returncode, 0, status.stderr)
+        fetched = self.run_helper("fetch", self.run_id(submitted), "snapshot", **settings)
+        self.assertEqual(fetched.returncode, 0, fetched.stderr)
+        self.assertEqual((self.local / "snapshot/submission.txt").read_text(), "12345\n")
+        expected = ["-o", f'ControlPath="{socket_path}"', "-o", "ControlMaster=no",
+                    "-o", "BatchMode=yes"]
+        connections = [row for row in self.calls() if row["name"] in ("ssh", "scp")]
+        self.assertEqual(len(connections), 6)
+        for row in connections:
+            self.assertEqual(row["args"][:len(expected)], expected)
+            self.assertNotIn("-t", row["args"])
+            self.assertNotIn("-tt", row["args"])
+        self.assertEqual(len(self.calls("sbatch")), 1)
+
+    def test_shared_connection_options_parse_in_openssh_without_connecting(self):
+        ssh = shutil.which("ssh")
+        if ssh is None:
+            self.skipTest("OpenSSH client unavailable for offline config parsing")
+        socket_path = str(self.root / "control socket;literal")
+        result = self.run_helper("status", "12345", ALPHA_CONTROL_PATH=socket_path)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        options = self.calls("ssh")[0]["args"][:6]
+        config = subprocess.run(
+            [ssh, "-F", "/dev/null", "-G", *options, "tester@alpha.invalid"],
+            text=True, capture_output=True, timeout=10,
+        )
+        self.assertEqual(config.returncode, 0, config.stderr)
+        self.assertIn(f"controlpath {socket_path}\n", config.stdout)
+        self.assertIn("batchmode yes\n", config.stdout)
+        self.assertIn("controlmaster false\n", config.stdout)
+
+    def test_invalid_shared_connection_paths_make_no_remote_calls(self):
+        for path in ('/tmp/a"b', '/tmp/a\\b', '/tmp/a\nb', '/tmp/a\rb'):
+            with self.subTest(path=path):
+                result = self.run_helper("submit", self.job, ALPHA_CONTROL_PATH=path)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("ALPHA_CONTROL_PATH", result.stderr)
+        self.assertEqual(self.calls(), [])
+
+    def test_shared_connection_failure_before_upload_never_submits(self):
+        result = self.run_helper("submit", self.job, ALPHA_CONTROL_PATH="/tmp/socket",
+                                 FAIL_SSH_CREATE="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.calls("scp"), [])
+        self.assertEqual(self.calls("sbatch"), [])
+
+    def test_shared_connection_disconnect_retains_receipt_without_retry(self):
+        result = self.run_helper("submit", self.job, ALPHA_CONTROL_PATH="/tmp/socket",
+                                 DROP_AFTER_SUBMIT="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unknown", result.stderr)
+        run = self.remote / "lantern/runs" / self.run_id(result)
+        self.assertEqual((run / "submission.txt").read_text(), "12345\n")
+        self.assertEqual(len(self.calls("sbatch")), 1)
 
     def test_invalid_arguments_make_no_remote_calls(self):
         for args, env in (

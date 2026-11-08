@@ -13,6 +13,8 @@ submit uploads explicit paths and prints the run ID and Slurm job ID.
 status shows queue/accounting output; command success is not job success.
 fetch copies a snapshot of the run directory into a new local directory.
 OpenSSH handles credentials/MFA through your existing configuration.
+Optional ALPHA_CONTROL_PATH reuses a manually authenticated SSH connection.
+When set, password/MFA prompts are disabled; establish the connection first.
 HELP
 }
 
@@ -28,6 +30,17 @@ esac
 alpha_host="${ALPHA_HOST:-}"
 [[ "$alpha_host" =~ ^[[:alnum:]_][[:alnum:]_.@-]*$ ]] ||
     fail 'Set ALPHA_HOST to user@host or an SSH configuration alias.'
+
+# Use the same socket for SSH commands and SCP transfers. Never force a PTY
+# onto transfers or receipt output, and leave default authentication unchanged.
+connection_options=()
+if [[ -n "${ALPHA_CONTROL_PATH:-}" ]]; then
+    [[ "$ALPHA_CONTROL_PATH" != *\"* && "$ALPHA_CONTROL_PATH" != *\\* &&
+       ! "$ALPHA_CONTROL_PATH" =~ [[:cntrl:]] ]] ||
+        fail 'ALPHA_CONTROL_PATH must not contain double quotes, backslashes, or control characters.'
+    # OpenSSH parses -o values as config text, so quote spaces for that parser too.
+    connection_options=(-o "ControlPath=\"$ALPHA_CONTROL_PATH\"" -o ControlMaster=no -o BatchMode=yes)
+fi
 
 # Prefix relative local paths so scp does not interpret ':' as a remote host.
 local_path() {
@@ -65,14 +78,14 @@ case "$command_name" in
         run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$-$RANDOM"
         remote_dir="lantern/runs/$run_id"
         printf 'Run ID: %s\nRemote directory: %s:%s\n' "$run_id" "$alpha_host" "$remote_dir"
-        ssh -- "$alpha_host" "mkdir -p lantern/runs && mkdir '$remote_dir'"
-        scp -- "$job_script" "$alpha_host:$remote_dir/job.sbatch"
+        ssh "${connection_options[@]}" -- "$alpha_host" "mkdir -p lantern/runs && mkdir '$remote_dir'"
+        scp "${connection_options[@]}" -- "$job_script" "$alpha_host:$remote_dir/job.sbatch"
         if (( $# > 0 )); then
-            scp -r -- "${payloads[@]}" "$alpha_host:$remote_dir/"
+            scp "${connection_options[@]}" -r -- "${payloads[@]}" "$alpha_host:$remote_dir/"
         fi
 
         # Keep the receipt remotely even if SSH drops after Slurm accepts it.
-        if ! submission=$(ssh -- "$alpha_host" \
+        if ! submission=$(ssh "${connection_options[@]}" -- "$alpha_host" \
             "cd '$remote_dir' && sbatch --parsable job.sbatch > submission.txt && cat submission.txt"); then
             fail "Submission status is unknown. Inspect $remote_dir/submission.txt and your queue before retrying."
         fi
@@ -89,7 +102,7 @@ case "$command_name" in
         cluster_option=''
         [[ -z "$cluster" ]] || cluster_option="--clusters='$cluster'"
         # Always try accounting, even if the completed job has left the queue.
-        if ! ssh -- "$alpha_host" "query_status=0
+        if ! ssh "${connection_options[@]}" -- "$alpha_host" "query_status=0
 squeue --jobs='$job_id' $cluster_option || query_status=1
 sacct --allocations --jobs='$job_id' --format=JobID,State,ExitCode $cluster_option || query_status=1
 exit \$query_status"; then
@@ -106,7 +119,7 @@ exit \$query_status"; then
         [[ ! -e "$destination" && ! -L "$destination" ]] ||
             fail 'The local destination already exists; choose a new directory.'
         mkdir -- "$destination"
-        if ! scp -r -- "$alpha_host:lantern/runs/$run_id/." "$destination/"; then
+        if ! scp "${connection_options[@]}" -r -- "$alpha_host:lantern/runs/$run_id/." "$destination/"; then
             fail "Fetch failed; partial files may remain in $destination."
         fi
         printf 'Copied run snapshot to %s; this does not establish job completion.\n' "$destination"
