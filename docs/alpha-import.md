@@ -129,8 +129,10 @@ the existing attempt schema is not extended to hold it.
 
 Status: Teammate A approved the strict JSON response contract and matching
 renderer acceptance on November 8, 2026, in the lead's assisting session. The
-heading is retained so existing proposal links continue to resolve. Explicit
-refusal criteria still require B's proposal under #25 and A's semantic review.
+heading is retained so existing proposal links continue to resolve. In the
+subsequent PR 39 review, A selected JSON-only handling for the bounded first
+experiment: free-text refusals are malformed and `refused` remains false. See
+the [operative evaluation rules](evaluation.md#reading-and-grading-model-choices).
 Approval does not establish implementation, format compliance, or experiment
 readiness. See the [response-contract handoff](response-contract-handoff.md)
 for renderer acceptance and the prepared, unsent #25 launch packet.
@@ -167,10 +169,13 @@ response string to `runner.parsing.parse`; no JSON-response parser is added here
   but it does not by itself establish an observed successful tool result, source
   truth, or the model's internal reasoning. The example's known mentions also
   remain `supported: false`; do not promote citations merely for matching an ID.
-- JSON parsing failure is not a refusal signal. Explicit refusal rules remain
-  subject to #25; selecting a valid insufficient-evidence option is a choice.
-  This revision does not implement refusal detection or settle legacy free-text
-  matching rules for other response formats.
+- JSON parsing failure is not a refusal signal. For the bounded first experiment,
+  set `refused=False` for all responses: completed free-text refusals are
+  malformed, and refusal language in an otherwise valid explanation does not
+  override the selected option. Selecting a known insufficient-evidence option
+  is a choice. This protocol cannot measure refusal separately; a zero refusal
+  count does not establish absence of refusal behavior. No refusal detection is
+  implemented here, and other response formats require separate approval.
 - Execution status takes precedence over response shape. Even valid JSON is
   truncated when the runtime reports `token_limit`. Timeout and infrastructure
   error text are retained without interpreting them as decisions.
