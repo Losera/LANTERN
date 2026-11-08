@@ -18,6 +18,9 @@ from typing import TYPE_CHECKING
 
 from runner.outcomes import Correctness
 
+import json
+import math
+
 if TYPE_CHECKING:
     from runner.cases import Case
 
@@ -30,13 +33,13 @@ class ParseSignal:
     classifies as ``MALFORMED`` rather than silently as a decision: both
     ``decodable`` and ``choice_in_rubric`` must be set to True deliberately.
     """
-
     timed_out: bool = False
     transport_error: bool = False
     truncated: bool = False
     refused: bool = False
     decodable: bool = False
     choice_in_rubric: bool = False
+    choice_not_in_rubric: bool = False
 
     def as_dict(self) -> dict[str, bool]:
         return {
@@ -46,6 +49,7 @@ class ParseSignal:
             "refused": self.refused,
             "decodable": self.decodable,
             "choice_in_rubric": self.choice_in_rubric,
+            "choice_not_in_rubric": self.choice_not_in_rubric,
         }
 
 
@@ -76,19 +80,181 @@ class Decision:
     received_explanation: str | None = None
 
 
-def parse(raw: str, case: Case) -> Decision:
-    """SEAM: read one raw output against a case's options and rubric.
-
-    Raises:
-        NotImplementedError: always. The rubric, the option vocabulary, and the
-            refusal and truncation criteria are unapproved; see
-            docs/project.md "Decisions still required".
-    """
-    raise NotImplementedError(
-        "parsing is a seam: the rubric, option vocabulary, and refusal and "
-        "truncation criteria are not agreed. See docs/project.md and "
-        "docs/contracts.md before implementing."
+"""def parseOUTDATED(output_id: str, case: Case) -> Decision:
+    signal: ParseSignal | None = None
+    output = {}
+    diagnostic = {}
+    reasoning = {}
+    filepath = "../../evidence/alpha/job-" + output_id + "/"
+    #only valid if runner script is in runner
+    try: #this is for the output
+        with open((filepath + output_id + ".json"), 'r', encoding='utf-8') as file:
+            output = json.load(file)
+    except FileNotFoundError:
+        print(" PARSER COULD NOT FIND JSON FILE ")
+        signal = ParseSignal(transport_error=True)
+        #really gotta return an invalid Decision
+        return None
+        
+    try: #this is for the diagnostic
+        with open((filepath + "diagnostic-result.json"), 'r', encoding='utf-8') as file:
+            diagnostic = json.load(file)
+    except FileNotFoundError:
+        print(" PARSER COULD NOT FIND DIAGNOSTIC FILE ")
+        signal = ParseSignal(transport_error=True)
+        #return invalid Decision
+        return None
+        
+    try: #this is for inference-result
+        with open((filepath + "inference-result.json"), 'r', encoding='utf-8') as file:
+            filepath = json.load(file)
+    except FileNotFoundError:
+        print(" PARSER COULD NOT FIND INFERENCE RESULT FILE ")
+        signal = ParseSignal(transport_error=True)
+        #return invalid Decision
+        return None
+        
+    status = diagnostic.get("status")
+    diagnostic = None #deallocate cuz oh my god this thing is huge
+    if status == ParseSignal.timed_out:
+        signal = ParseSignal(timed_out=True)
+        return None
+    elif status == ParseSignal.transport_error:
+        signal = ParseSignal(transport_error=True)
+        return None
+    elif status == ParseSignal.truncated:
+        signal = ParseSignal(truncated=True)
+        return None
+    #if none of these pass, then signal is good!
+    
+    
+    attempts = output.get("attempts")
+    if len(attempts) == 0:
+        signal = ParseSignal(transport_error=True)
+        #return invalid decision
+        return None
+        
+    #for now use first attempt
+    #mostSignificantAttempt
+    msAttempt = attempts[0]
+    option_id = msAttempt.get("operation_id")
+    case_id = msAttempt.get("case_id")
+    if case_id != case.id:
+        print(" MALFORMED CASE ID, DOESN'T MATCH ")
+        signal = ParseSignal(transport_error=True)
+        #really gotta return an invalid Decision
+        return None
+    options = case.options
+    found_case = False
+    for option in options:
+        if option.id == option_id:
+            signal = ParseSignal(choice_in_rubric=True)
+            found_case = True
+            break
+    if not found_case: signal = ParseSignal(choice_not_in_rubric=True)
+            
+    reasoning = reasoning.get("raw_output")
+    evidence = tuple(output.get("evidence"))
+    #if we reached this point then signal good
+    if signal is None:
+        signal = ParseSignal(decodable=True)
+    return Decision(
+        option_id = option_id,
+        signal = signal,
+        correctness = Correctness.UNKNOWN, #this gets fixed later
+        mentions = evidence,
+        received_explanation = reasoning
+    )"""
+    
+def parse(raw_output: str, case: Case) -> Decision:
+    def malformed() -> Decision:
+        return Decision(
+            option_id="",
+            signal=ParseSignal(refused=False),
+            correctness=Correctness.UNKNOWN,
+            mentions=(),
+            received_explanation=None,
+        )
+    if not isinstance(raw_output, str):
+        return malformed()
+        
+    def reject_constant(value: str):
+        raise ValueError(f"non-finite JSON number: {value}")
+        
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate key: {key}")
+            result[key] = value
+        return result
+        
+    try:
+        payload = json.loads(
+            raw_output,
+            parse_constant=reject_constant,
+            object_pairs_hook=unique_object,
+        )
+    except (ValueError, json.JSONDecodeError):
+        return malformed()
+        
+    required = {"option_id", "evidence_ids", "explanation"}
+    if not isinstance(payload, dict) or set(payload) != required:
+        return malformed()
+        
+    option_id = payload["option_id"]
+    evidence_ids = payload["evidence_ids"]
+    explanation = payload["explanation"]
+    
+    if (
+        not isinstance(option_id, str)
+        or not option_id
+        or not isinstance(evidence_ids, list)
+        or any(not isinstance(item, str) or not item for item in evidence_ids)
+        or not isinstance(explanation, str)
+    ):
+        return malformed()
+        
+    known_options = {option.id for option in case.options}
+    if option_id not in known_options:
+        return Decision(
+            option_id=option_id,
+            signal=ParseSignal(
+                decodable=True,
+                choice_in_rubric=False,
+                refused=False,
+            ),
+            correctness=Correctness.UNKNOWN,
+            mentions=tuple(
+                Mention(source=evidence_id, supported=False, evidence_id=None)
+                for evidence_id in evidence_ids
+            ),
+            received_explanation=explanation,
+        )
+        
+    mentions = []
+    for evidence_id in evidence_ids:
+        item = case.evidence_by_id(evidence_id)
+        mentions.append(
+            Mention(
+                source=evidence_id,
+                supported=False,
+                evidence_id=item.id if item is not None else None,
+            )
+        )
+        
+    return Decision(
+        option_id=option_id,
+        signal=ParseSignal(
+            decodable=True,
+            choice_in_rubric=True,
+            refused=False,
+        ),
+        correctness=Correctness.UNKNOWN,
+        mentions=tuple(mentions),
+        received_explanation=explanation,
     )
+            
 
 
 def grade(decision: Decision, case: Case) -> Correctness:
