@@ -19,6 +19,24 @@ rubric, nuisance-factor handling, primary checks, and failure handling before
 held-out evaluation. Preserve meaningful provenance in a neutral evidence table;
 do not strip reliability information merely to force unchanged answers.
 
+### Candidate cue classes for team review — not yet agreed
+
+The fictional campus-transport example suggests two classes for discussion:
+
+- **Presentation order or position:** where an option or fact appears in a
+  list, table, or document, when that position carries no decision-relevant
+  meaning.
+- **Unsupported endorsement or evaluative wording:** language favoring an
+  option without adding evidence relevant to the stated decision.
+
+These are candidate classes, not blanket declarations that such cues are always
+irrelevant. Assess each cue in the context of the user's goal: position can carry
+meaning in some tasks, and opinion, lived experience, preferences, accessibility
+needs, and source authority can be decision-relevant. The team must agree the
+project-level inventory before using it as an evaluation rule; each case must
+still state which particular evidence or presentation feature is relevant to
+that case.
+
 Separate exploration from held-out cases. Measure latency and failure rate
 before fixing the run budget. The old 18-run shopping plan and 120-decision audit
 pilot are historical planning budgets, not required counts or powered studies.
