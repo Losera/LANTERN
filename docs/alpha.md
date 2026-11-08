@@ -11,14 +11,35 @@ for this bootstrap.
 | --- | --- | --- |
 | SSH/MFA | User-reported access | Authorized session and dated observation, without secrets |
 | Allocation | Observed November 7, 2026 UTC: [job 175560](../evidence/alpha/job-175560/README.md), H100 MIG 1g.10gb on alphagpu01 | Retained own-job receipt and MIG identity; parent memory is not allocated slice memory |
-| GPU inference | Observed November 8, 2026 UTC: [tensor job 175757](../evidence/alpha/job-175757/README.md), [model job 175794](../evidence/alpha/job-175794/README.md), one BF16 Qwen3 response | Preserve the model-default sampling discrepancy; corrected greedy/full-budget diagnostic pending |
-| Task competence | Not tested; waiting for agreed cases and issue 25's rules | Ten valid fixed-choice decisions from a fixed ten-attempt schedule; retain every failure |
-| Throughput | Not tested | Timed bounded batch, attempts, token limits, errors, memory |
+| GPU inference | Observed November 8, 2026 UTC: [tensor job 175757](../evidence/alpha/job-175757/README.md), [model job 175794](../evidence/alpha/job-175794/README.md), and [corrected greedy/capacity job 175890](../evidence/alpha/job-175890/README.md) | Preserve the original sampling discrepancy; diagnostics do not establish task responses |
+| Task competence | Not tested; waiting for B's approved case/key, renderer, parser and grader | At least ten readable decisions from twenty fixed attempts; correctness reported separately; no replacement attempts |
+| Throughput | Not tested | Measure the same twenty-attempt batch, including process startup/model loading, errors, tokens, timing and memory |
 | Serving/network route | Not tested; optional | Site approval, node-local test, then approved client route |
 | Pi subject integration | Not tested; optional | Completion, streaming, then benign tool test with actual access checked |
 
 An installed CLI or working login does not establish GPU readiness. A completion
 does not establish tool competence. A successful syntax check establishes neither.
+
+### Approved bounded schedule: November 8, 2026
+
+The lead selected one approved case, all five arms in the runner's existing
+order, and four repetitions per arm. Every scheduled attempt has a fixed ID;
+twenty attempts must be accounted for, and no failure is replaced. Passing the
+decision gate requires all twenty attempts to have started and at least ten
+outcomes of `decision`. A readable wrong answer is a decision. This gate measures
+response usability; rubric-defined correctness remains a separate result.
+
+Use the existing pinned Qwen3 BF16 environment and model. Explicit greedy
+decoding disables model defaults and stops on either `151645` or `151643`.
+Use at most 1,024 input and 128 output tokens, with no silent prompt truncation.
+Each sequential attempt runs in a fresh process with a 60-second deadline
+including model loading. Request thirty minutes for the job. The same batch
+provides the first throughput observation; no speed threshold is asserted.
+
+Freeze case/key approval, hashes, exact prompts, schedule, settings and failure
+handling before submission. See the [batch operator guide](alpha-batch.md).
+This choice changes no historical diagnostic evidence and authorizes no live
+submission by an agent.
 
 ## Allocation planning constraint
 
@@ -102,7 +123,8 @@ as a candidate, not an approved or demonstrated model. Record revision, model
 license, libraries, dtype, prompt/template, generation limits, and peak memory.
 Do not install or download it merely because it appears here.
 
-Establish one short GPU inference, then ten valid decisions, then timed batches.
+Establish one short GPU inference, then the approved fixed twenty-attempt batch
+for readable-decision and throughput evidence.
 Keep contexts and generations bounded. On OOM, inspect the measured allocation
 and memory use before proposing a smaller model, context, or batch. Environment
 and quantization changes require the appropriate review. Queue delay is not

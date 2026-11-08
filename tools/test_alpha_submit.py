@@ -131,6 +131,31 @@ class AlphaSubmitTests(unittest.TestCase):
         self.assertIn("Usage:", result.stdout)
         self.assertEqual(self.calls(), [])
 
+    def test_explicit_run_id_and_receipt_recovery(self):
+        result = self.run_helper("submit", "--run-id", "fixed-run", self.job,
+                                 DROP_AFTER_SUBMIT="1")
+        self.assertNotEqual(result.returncode, 0)
+        receipt = self.run_helper("receipt", "fixed-run")
+        self.assertEqual(receipt.stdout.strip(), "12345")
+        self.assertEqual(len(self.calls("sbatch")), 1)
+        again = self.run_helper("submit", "--run-id", "fixed-run", self.job)
+        self.assertNotEqual(again.returncode, 0)
+        self.assertEqual(len(self.calls("sbatch")), 1)
+
+    def test_explicit_run_id_rejects_shell_text_before_network(self):
+        result = self.run_helper("submit", "--run-id", "bad;touch-me", self.job)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.calls(), [])
+
+    def test_observe_has_machine_sections_and_query_failures(self):
+        result = self.run_helper("observe", "12345;alpha", QUEUE="",
+                                 ACCOUNTING="12345|COMPLETED|0:0")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("QUEUE\n\nACCOUNTING\n12345|COMPLETED|0:0", result.stdout)
+        result = self.run_helper("observe", "12345", FAIL_SQUEUE="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("ACCOUNTING", result.stdout)
+
     def assert_original_connection_arguments(self, control_path):
         # Freeze the SSH/SCP argv from pre-multiplexing helper eae89e8.
         # Only the generated run ID and fixture paths are filled at runtime;
