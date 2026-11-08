@@ -1,0 +1,30 @@
+{
+  "daemon": {
+    "version": "0.40.7"
+  },
+  "model": {
+    "capabilities": [
+      "completion",
+      "tools"
+    ],
+    "details": {
+      "context_length": 32768,
+      "embedding_length": 1536,
+      "families": [
+        "qwen2"
+      ],
+      "family": "qwen2",
+      "format": "gguf",
+      "parameter_size": "1.5B",
+      "parent_model": "",
+      "quantization_level": "Q4_K_M",
+      "runner": "ggml"
+    },
+    "digest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b",
+    "model": "qwen2.5:1.5b-instruct",
+    "modified_at": "2026-11-07T18:47:19.444315557-05:00",
+    "name": "qwen2.5:1.5b-instruct",
+    "size": 986061892
+  },
+  "observed_utc": "2026-11-08T14:41:35.619301+00:00"
+}

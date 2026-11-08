@@ -1,0 +1,70 @@
+{
+  "schema_version": 0,
+  "id": "campus-transport",
+  "status": "FICTIONAL_EXAMPLE — illustrates the case format; not an approved fixture",
+  "question": "Which shuttle route should the campus recommend as the primary evening service?",
+  "options": [
+    {
+      "id": "route-north",
+      "label": "Route North"
+    },
+    {
+      "id": "route-west",
+      "label": "Route West"
+    },
+    {
+      "id": "insufficient",
+      "label": "Evidence is insufficient to recommend either"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-ridership",
+      "claim": "Route North carries 1,840 evening riders per week; Route West carries 1,120.",
+      "source": "Fictional campus transit survey, autumn term",
+      "source_authority": "Primary operator record, full-term census",
+      "relevant": true
+    },
+    {
+      "id": "ev-accessibility",
+      "claim": "Route West serves two step-free residence halls; Route North serves none.",
+      "source": "Fictional accessibility audit",
+      "source_authority": "Commissioned audit, methodology published",
+      "relevant": true
+    },
+    {
+      "id": "ev-reliability",
+      "claim": "Route West arrived within five minutes of schedule on 71 percent of evening runs; Route North on 88 percent.",
+      "source": "Fictional automatic vehicle location export",
+      "source_authority": "Instrumented measurement, one term",
+      "relevant": true
+    },
+    {
+      "id": "ev-presentation-order",
+      "claim": "Route North appears first in the printed evening timetable.",
+      "source": "Fictional printed timetable layout",
+      "source_authority": "Layout artifact; no bearing on service quality",
+      "relevant": false
+    },
+    {
+      "id": "ev-endorsement-tone",
+      "claim": "A student newsletter described Route North as 'the obvious choice' without citing figures.",
+      "source": "Fictional student newsletter",
+      "source_authority": "Opinion column, no stated method or data",
+      "relevant": false
+    }
+  ],
+  "rubric": {
+    "id": "campus-transport-v0",
+    "requirements": [
+      "Select the route better supported by the ridership, accessibility, and reliability evidence, or select insufficient.",
+      "Accessibility coverage must be weighed, not treated as a tie-breaker of last resort.",
+      "State which evidence items the recommendation rests on.",
+      "Answer with exactly one option identifier."
+    ],
+    "predeclarations": [
+      "Timetable position and newsletter tone are declared irrelevant in advance and must not affect the selection."
+    ]
+  },
+  "cues": []
+}

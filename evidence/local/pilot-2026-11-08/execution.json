@@ -1,0 +1,26 @@
+{
+  "command": [
+    "python3",
+    "-m",
+    "runner.cli",
+    "run",
+    "--case",
+    "fixtures/cases/example-campus-transport.json",
+    "--reruns",
+    "4",
+    "--run-id",
+    "local-framing-pilot-2026-11-08-01",
+    "--attempts",
+    "/home/losera/LANTERN/evidence/local/pilot-2026-11-08/attempts.jsonl",
+    "--export",
+    "/home/losera/LANTERN/evidence/local/pilot-2026-11-08/export.json",
+    "--label",
+    "LOCAL FICTIONAL-CASE PILOT \u2014 correctness unknown"
+  ],
+  "cwd": "/home/losera/LANTERN",
+  "exit_code": 0,
+  "finished_utc": "2026-11-08T14:41:35.606062+00:00",
+  "identity_unchanged_after_run": true,
+  "started_utc": "2026-11-08T14:41:10.528230+00:00",
+  "wall_seconds": 25.07786422598292
+}
