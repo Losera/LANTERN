@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+import io
 import json
 from pathlib import Path
 import re
@@ -30,6 +31,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+from urllib.error import URLError
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -116,6 +119,79 @@ def check_modules(errors: list[str], counts: Counter) -> None:
             errors.append(f"{module}: import failed: {type(exc).__name__}: {exc}")
 
 
+def check_adapter() -> None:
+    """Exercise the real adapter through synthetic HTTP, never a live daemon.
+
+    Fixtures establish local request/result wiring and failure preservation.
+    They establish neither real Ollama behavior nor model quality.
+    """
+    from runner import models
+    from runner.unknown import Unknown
+
+    payload = models.PromptPayload("SYNTHETIC offline checker input", "fixture-digest", ())
+    for scenario in ("stop", "length", "api_error", "transport_error"):
+        calls: list[str] = []
+
+        def respond(request, *, timeout):
+            calls.append(request.full_url)
+            if timeout <= 0:
+                raise ValueError("adapter request must have a positive timeout")
+            if scenario == "transport_error":
+                raise URLError("synthetic offline transport failure")
+            if request.full_url == "http://127.0.0.1:11434/api/version":
+                if request.get_method() != "GET":
+                    raise ValueError("version request must use GET")
+                return io.BytesIO(b'{"version":"0.40.7"}')
+            if request.full_url != "http://127.0.0.1:11434/api/generate":
+                raise ValueError(f"unexpected adapter URL: {request.full_url}")
+            expected = {
+                "model": "qwen2.5:1.5b-instruct", "prompt": payload.text, "stream": False,
+                "options": {"temperature": 0.0, "top_p": 1.0, "seed": 1,
+                            "num_predict": 512, "num_ctx": 4096},
+            }
+            if request.get_method() != "POST" or json.loads(request.data) != expected:
+                raise ValueError("adapter request differs from approved settings/prompt")
+            if scenario == "api_error":
+                return io.BytesIO(b'{"error":"synthetic generation failure"}')
+            return io.BytesIO(json.dumps({
+                "response": "SYNTHETIC offline checker output", "done_reason": scenario,
+                "prompt_eval_count": 7, "eval_count": 3, "total_duration": 125000000,
+            }).encode("utf-8"))
+
+        with patch.object(models, "urlopen", side_effect=respond):
+            try:
+                result = models.UnapprovedAdapter().generate(payload)
+            except models.AdapterExecutionError as exc:
+                if scenario == "transport_error":
+                    if not isinstance(exc.raw_output, Unknown) or len(calls) != 1:
+                        raise ValueError("transport failure lost unknown output or continued generation")
+                elif scenario == "api_error":
+                    if (exc.raw_output != '{"error":"synthetic generation failure"}'
+                            or exc.provenance.execution_site is not models.ExecutionSite.LOCAL
+                            or exc.outcome.value != "error" or len(calls) != 2):
+                        raise ValueError("API failure lost its body, provenance, or error outcome")
+                else:
+                    raise
+            else:
+                if scenario in ("api_error", "transport_error"):
+                    raise ValueError("adapter converted an execution failure into a response")
+                if (not isinstance(result, models.RawOutput)
+                        or result.text != "SYNTHETIC offline checker output"
+                        or result.truncated_by_limit is not (scenario == "length")
+                        or len(calls) != 2):
+                    raise ValueError("adapter lost raw output, truncation, or request ordering")
+                provenance = result.provenance
+                if (provenance.execution_site is not models.ExecutionSite.LOCAL
+                        or provenance.model_id != "qwen2.5:1.5b-instruct"
+                        or provenance.model_revision != "65ec06548149"
+                        or provenance.harness_version != "0.40.7"
+                        or provenance.dtype != "Q4_K_M/GGUF"
+                        or provenance.prompt_tokens != 7 or provenance.completion_tokens != 3
+                        or provenance.runtime_seconds != 0.125
+                        or not isinstance(provenance.peak_memory_bytes, Unknown)):
+                    raise ValueError("adapter changed local provenance or invented memory usage")
+
+
 def check_seams(errors: list[str], counts: Counter) -> None:
     """Seams must refuse; implemented code must not raise NotImplementedError.
 
@@ -125,18 +201,14 @@ def check_seams(errors: list[str], counts: Counter) -> None:
     from runner import prompts, tools
     from runner.cases import load_case
     from runner.conditions import expand
-    from runner.models import UnapprovedAdapter
     from runner.parsing import grade, parse
 
     case = load_case(ROOT / "fixtures/cases/example-campus-transport.json")
     condition = expand(case.id)[0]
 
     seams = (
-        ("runner.prompts.render", lambda: prompts.render(case, condition)),
         ("runner.parsing.parse", lambda: parse("text", case)),
         ("runner.parsing.grade", lambda: grade(None, case)),
-        ("runner.models.UnapprovedAdapter.generate",
-         lambda: UnapprovedAdapter().generate(None)),
         ("runner.tools.ToolRegistry.execute",
          lambda: tools.ToolRegistry().execute(
              tools.record_proposal("example", "{}"))),
@@ -157,6 +229,8 @@ def check_seams(errors: list[str], counts: Counter) -> None:
 
     implemented = (
         ("runner.prompts.digest", lambda: prompts.digest("x")),
+        ("runner.prompts.render", lambda: prompts.render(case, condition)),
+        ("runner.models.UnapprovedAdapter.generate", check_adapter),
         ("runner.tools.record_proposal",
          lambda: tools.record_proposal("example", "{}")),
     )
@@ -647,6 +721,66 @@ def check(root: Path, *, oracle: Path | None = None) -> tuple[list[str], Counter
 class CheckerTests(unittest.TestCase):
     """Each test makes one check fail, so a silent checker cannot pass."""
 
+    def test_adapter_check_catches_a_stub_without_transport(self):
+        from runner import models
+
+        stub = models.RawOutput("synthetic stub", models.Provenance(models.ExecutionSite.LOCAL))
+        with patch.object(models.UnapprovedAdapter, "generate", return_value=stub):
+            with self.assertRaisesRegex(ValueError, "raw output, truncation, or request ordering"):
+                check_adapter()
+
+    def test_adapter_check_catches_restored_refusal(self):
+        from runner import models
+
+        with patch.object(models.UnapprovedAdapter, "generate", side_effect=NotImplementedError("regressed")):
+            errors: list[str] = []
+            check_seams(errors, Counter())
+        self.assertTrue(any("UnapprovedAdapter.generate: documented as implemented but refused" in e
+                            for e in errors), errors)
+
+    def test_adapter_check_catches_lost_truncation(self):
+        from dataclasses import replace
+        from runner import models
+
+        original = models.UnapprovedAdapter.generate
+
+        def lose_truncation(adapter, payload):
+            return replace(original(adapter, payload), truncated_by_limit=False)
+
+        with patch.object(models.UnapprovedAdapter, "generate", lose_truncation):
+            with self.assertRaisesRegex(ValueError, "truncation"):
+                check_adapter()
+
+    def test_adapter_check_catches_lost_error_body(self):
+        from runner import models
+        from runner.unknown import UNKNOWN
+
+        original = models.UnapprovedAdapter.generate
+
+        def lose_error_body(adapter, payload):
+            try:
+                return original(adapter, payload)
+            except models.AdapterExecutionError as exc:
+                exc.raw_output = UNKNOWN
+                raise
+
+        with patch.object(models.UnapprovedAdapter, "generate", lose_error_body):
+            with self.assertRaisesRegex(ValueError, "API failure lost its body"):
+                check_adapter()
+
+    def test_default_lane_opens_no_socket(self):
+        import socket
+
+        with patch.object(socket, "socket", side_effect=AssertionError("network forbidden")) as sockets, \
+                patch.object(socket, "create_connection", side_effect=AssertionError("network forbidden")) as connections:
+            errors, counts, oracle = check(ROOT)
+        self.assertEqual(errors, [])
+        self.assertEqual(counts["seams refusing"], 3)
+        self.assertEqual(counts["implemented callables"], 4)
+        self.assertEqual(oracle["status"], "NOT_RUN")
+        sockets.assert_not_called()
+        connections.assert_not_called()
+
     def test_declared_fields_parses_and_rejects_absence(self):
         self.assertEqual(
             declared_fields("const FIELDS = [\n 'a',\n \"b\"\n];"), ["a", "b"])
@@ -690,15 +824,38 @@ class CheckerTests(unittest.TestCase):
             trace.ORACLE_CONFORMANCE = original
 
     def test_seam_check_catches_an_implemented_seam(self):
-        from runner import prompts
-        from runner.models import PromptPayload
-        original = prompts.render
-        prompts.render = lambda case, condition: PromptPayload("x", "y", ())
+        from runner import parsing
+        original = parsing.parse
+        parsing.parse = lambda raw, case: None
         try:
             errors: list[str] = []
             check_seams(errors, Counter())
             self.assertTrue(
                 any("returned a value instead of refusing" in e for e in errors),
+                errors,
+            )
+        finally:
+            parsing.parse = original
+
+    def test_seam_check_catches_an_implemented_callable_that_refuses(self):
+        """The mirror guard: a promoted seam must not quietly start refusing.
+
+        Without this, moving a function from `seams` to `implemented` would be
+        checked in one direction only, and a regression that restored the
+        `NotImplementedError` would read as a clean lane.
+        """
+        from runner import prompts
+        original = prompts.render
+
+        def refuse(case, condition):
+            raise NotImplementedError("regressed")
+
+        prompts.render = refuse
+        try:
+            errors: list[str] = []
+            check_seams(errors, Counter())
+            self.assertTrue(
+                any("documented as implemented but refused" in e for e in errors),
                 errors,
             )
         finally:
