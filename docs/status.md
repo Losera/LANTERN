@@ -1,5 +1,37 @@
 # Current status and handoff
 
+## Alpha runtime evidence: November 8, 2026 UTC
+
+This dated observation supplements the historical checkpoints below; it does not
+declare the Alpha readiness task complete. [Issue 10](https://github.com/Losera/LANTERN/issues/10)
+remains open for decision-validity and throughput evidence.
+
+- [Job 175757](../evidence/alpha/job-175757/README.md): native Python 3.12.3,
+  PyTorch 2.9.1+cu126, CUDA tensor calculation on the allocated MIG slice returned
+  14.0. NumPy absence was a warning rather than a failed calculation.
+- [Job 175794](../evidence/alpha/job-175794/README.md): pinned
+  Qwen/Qwen3-4B-Instruct-2507 at
+  `cdbee75f17c01a7cc42f958dc650907174af0554`, BF16, batch 1, generated the exact
+  phrase `GPU inference ready.` in 3.8306 seconds. Peak PyTorch reserved memory
+  was 8,111,783,936 bytes on a slice reporting 10,468,982,784 bytes.
+- Both jobs' `COMPLETED / 0:0` accounting was human-reported. Raw logs, receipts,
+  package reports, and source hashes are retained; a separate raw accounting
+  capture remains to be added.
+- Important correction: the model log reports generation defaults changed to
+  sampling, while the JSON records the requested greedy configuration. Preserve
+  both unchanged and do not claim verified greedy decoding for this run.
+- Next diagnostic: enforce and test effective greedy settings, repeat the smoke
+  response, and measure the 1,024-input/128-output capacity boundary using the
+  existing environment and weights. No new installation or download is needed.
+- Ten decisions remain blocked on agreed cases and matching/refusal/truncation
+  rules. Full-budget fit, task competence, sustained throughput, and Alpha
+  runner integration remain untested.
+
+Evidence and diagnostic preparation are on `docs/alpha-runtime-evidence` in
+`/tmp/LANTERN-alpha-runtime-evidence`; semantic review is required before commit.
+This work does not change the separately approved local Ollama model or Kai's
+adapter claim.
+
 ## Integrated bootstrap: November 7, 2026
 
 Objective: bootstrap LANTERN's context transfer and engineering collaboration.

@@ -1,0 +1,7 @@
+{
+  "exit_code": 0,
+  "stage": "complete",
+  "environment_path": "/mnt/home/student019/lantern/envs/qwen3-inference-175794",
+  "model_path": "/mnt/home/student019/lantern/models/qwen3-4b-175794",
+  "finished_utc": "2026-11-08T01:54:50.553999+00:00"
+}

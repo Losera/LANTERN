@@ -10,9 +10,9 @@ for this bootstrap.
 | Boundary | Current basis | What would establish the next step |
 | --- | --- | --- |
 | SSH/MFA | User-reported access | Authorized session and dated observation, without secrets |
-| Allocation | Documented in November 7 research; not observed here | Own job ID, assigned resources, and MIG identity |
-| GPU inference | Not tested | Exact model/environment and a retained GPU inference result |
-| Task competence | Not tested | Ten valid fixed-choice decisions; failures reported separately |
+| Allocation | Observed November 7, 2026 UTC: [job 175560](../evidence/alpha/job-175560/README.md), H100 MIG 1g.10gb on alphagpu01 | Retained own-job receipt and MIG identity; parent memory is not allocated slice memory |
+| GPU inference | Observed November 8, 2026 UTC: [tensor job 175757](../evidence/alpha/job-175757/README.md), [model job 175794](../evidence/alpha/job-175794/README.md), one BF16 Qwen3 response | Preserve the model-default sampling discrepancy; corrected greedy/full-budget diagnostic pending |
+| Task competence | Not tested; waiting for agreed cases and issue 25's rules | Ten valid fixed-choice decisions from a fixed ten-attempt schedule; retain every failure |
 | Throughput | Not tested | Timed bounded batch, attempts, token limits, errors, memory |
 | Serving/network route | Not tested; optional | Site approval, node-local test, then approved client route |
 | Pi subject integration | Not tested; optional | Completion, streaming, then benign tool test with actual access checked |

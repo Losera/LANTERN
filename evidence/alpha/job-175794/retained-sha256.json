@@ -1,0 +1,16 @@
+{
+  "alpha-inference-baseline.txt": "1d8c281527d10e15562a99b29f7ece71cc6c3ca538912e57d709afc2e4d08e1c",
+  "alpha-inference-probe.py": "329a651d40ab0260271e7edb7157d935d8520296cfb47210077210fdc5f70524",
+  "alpha-inference-requirements.txt": "eb5e9305de27d2fe72b53de72fe368de7f34bc9cfbf4a9dadcf5b941fde176e9",
+  "environment-path.txt": "b74e01181e7f03cce763889d9eae668b2d5b84e5bd5547b9a3ce4adc6ac6df08",
+  "inference-result.json": "c09a079083ea91607e40c59e6a63362824d3a533c6a7feb0895f962232297e21",
+  "input-sha256.txt": "4995252021e85ddab4db23111d9071b65e89cc5848b734ce87ea7530d49837fc",
+  "installed-packages.txt": "949a937176c42a0c6ec67ac738663b1ef0ccacee0e0279a8c9325574e0444f84",
+  "job-status.json": "d68113c2e9adcef4057632290c75d14923d1b524ff3a295ef2bc548b5279ad4a",
+  "job.sbatch": "a78d12e88aa256e50984ffc16f311a64ba13c7171d52da9853e93a4f63b57001",
+  "lantern-inference-175794.out": "c4119d2719614b2d8cee23d1862fbede7e60975ea8b96c820c70d802ba07bcc6",
+  "model-path.txt": "77230876d0decdc0f191ab4f1539595401e3e7a59f8064494cec1408d6850916",
+  "pip-baseline-report.json": "8407b5788f54da98e2b3833d08cb37cceaa5d967c8da206b94ffd41e65ad13a9",
+  "pip-inference-report.json": "765b6b57c1507bf8378cbf6e9e84e29e080779cc79fae6f77bba109191478bbe",
+  "submission.txt": "43929a1344fe62cfc7db16fa60a95abd212a32fa3f43d3f5802831b619aabc8a"
+}
