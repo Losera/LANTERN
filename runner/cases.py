@@ -60,6 +60,16 @@ class Rubric:
     id: str
     requirements: tuple[str, ...]
 
+@dataclass(frozen=True)
+class Cue:
+    """Provides a cue to be considered in the judgement, and whether it is relevant or not
+    
+    Provides context on stylistic manners that should be considered when making a decision
+    """
+    
+    id: str
+    cue: str
+    relevant: bool
 
 @dataclass(frozen=True)
 class Case:
@@ -69,6 +79,7 @@ class Case:
     question: str
     options: tuple[Option, ...]
     evidence: tuple[EvidenceItem, ...]
+    cues: tuple[Cue, ...]
     rubric: Rubric
     status: str
     schema_version: int = SCHEMA_VERSION
@@ -86,6 +97,14 @@ class Case:
     @property
     def irrelevant_evidence(self) -> tuple[EvidenceItem, ...]:
         return tuple(item for item in self.evidence if not item.relevant)
+        
+    @property
+    def relevant_cues(self) -> tuple[Cue, ...]:
+        return tuple(item for item in self.cues if item.relevant)
+        
+    @property
+    def irrelevant_cues(self) -> tuple[Cues, ...]:
+        return tuple(item for item in self.cues if not item.relevant)
 
 
 def _require(data: dict, key: str, kind: type, where: str):
@@ -141,7 +160,8 @@ def validate_case(data: object, *, where: str = "case") -> Case:
     case_id = _require(data, "id", str, where)
     status = _require(data, "status", str, where)
     question = _require(data, "question", str, where)
-
+    
+    #UPDATE WITH HELP
     raw_options = _require(data, "options", list, where)
     if len(raw_options) < 2:
         raise CaseError(f"{where}: a decision needs at least two options")
@@ -153,7 +173,8 @@ def validate_case(data: object, *, where: str = "case") -> Case:
         _exact_keys(raw, {"id", "label"}, spot)
         options.append(Option(_require(raw, "id", str, spot), _require(raw, "label", str, spot)))
     _reject_duplicates([o.id for o in options], f"{where}.options", "id")
-
+    
+    #UPDATE WITH HELP
     raw_evidence = _require(data, "evidence", list, where)
     if not raw_evidence:
         raise CaseError(f"{where}: evidence packet must not be empty")
@@ -177,7 +198,8 @@ def validate_case(data: object, *, where: str = "case") -> Case:
             relevant=relevant,
         ))
     _reject_duplicates([item.id for item in evidence], f"{where}.evidence", "id")
-
+    
+    #UPDATE WITH HELP
     raw_rubric = _require(data, "rubric", dict, where)
     spot = f"{where}.rubric"
     _exact_keys(raw_rubric, {"id", "requirements"}, spot)
