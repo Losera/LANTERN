@@ -1,0 +1,89 @@
+{
+  "arms": [
+    {
+      "arm": "baseline",
+      "attempts": 4,
+      "decisions": 4,
+      "failure_total": 0,
+      "failures": {},
+      "unresolved": 0
+    },
+    {
+      "arm": "unchanged_rerun",
+      "attempts": 4,
+      "decisions": 4,
+      "failure_total": 0,
+      "failures": {},
+      "unresolved": 0
+    },
+    {
+      "arm": "neutral_edit",
+      "attempts": 4,
+      "decisions": 4,
+      "failure_total": 0,
+      "failures": {},
+      "unresolved": 0
+    },
+    {
+      "arm": "framing",
+      "attempts": 4,
+      "decisions": 4,
+      "failure_total": 0,
+      "failures": {},
+      "unresolved": 0
+    },
+    {
+      "arm": "correction",
+      "attempts": 4,
+      "decisions": 4,
+      "failure_total": 0,
+      "failures": {},
+      "unresolved": 0
+    }
+  ],
+  "attempts": 20,
+  "correction_pairs": [
+    {
+      "baseline_option": "route-west",
+      "case_id": "campus-transport",
+      "contrast_arm": "correction",
+      "contrast_option": "route-west",
+      "reason": "recorded choices agree",
+      "verdict": "stable"
+    }
+  ],
+  "coverage": [
+    {
+      "covered": true,
+      "definitive": 20,
+      "pending": [],
+      "registered": 20,
+      "run_id": "local-framing-pilot-2026-11-08-01"
+    }
+  ],
+  "effect": "none_measured",
+  "excluded": [],
+  "framing_counts": {
+    "flip": 0,
+    "pairs": 1,
+    "stable": 1,
+    "unresolved": 0
+  },
+  "framing_pairs": [
+    {
+      "baseline_option": "route-west",
+      "case_id": "campus-transport",
+      "contrast_arm": "framing",
+      "contrast_option": "route-west",
+      "reason": "recorded choices agree",
+      "verdict": "stable"
+    }
+  ],
+  "notes": [
+    "Denominators include every attempted run, failures included.",
+    "A timeout is unresolved: neither a flip nor resistance to a cue.",
+    "Coverage records whether attempts reached a definitive outcome; it is not task success. An empty run is vacuously covered.",
+    "A flip is an observed difference between recorded choices. No causal, fairness, or internal-mechanism claim follows from it.",
+    "No framing effect was measured in these records. That is a reportable result, not a missing one."
+  ]
+}

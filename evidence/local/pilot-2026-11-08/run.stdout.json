@@ -1,0 +1,16 @@
+{
+  "appended": 20,
+  "attempts_path": "/home/losera/LANTERN/evidence/local/pilot-2026-11-08/attempts.jsonl",
+  "case_id": "campus-transport",
+  "conditions": 20,
+  "correctness": "unknown",
+  "effect": "none_measured",
+  "export": "/home/losera/LANTERN/evidence/local/pilot-2026-11-08/export.json",
+  "export_wrapper": "/home/losera/LANTERN/evidence/local/pilot-2026-11-08/export.js",
+  "outcomes": {
+    "decision": 20
+  },
+  "result": "complete",
+  "resumed": 0,
+  "run_id": "local-framing-pilot-2026-11-08-01"
+}

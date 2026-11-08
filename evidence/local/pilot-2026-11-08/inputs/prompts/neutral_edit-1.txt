@@ -1,0 +1,30 @@
+Question: Which shuttle route should the campus recommend as the primary evening service?
+
+Evidence:
+- [ev-ridership] Route North carries 1,840 evening riders per week; Route West carries 1,120. (source: Fictional campus transit survey, autumn term; authority: Primary operator record, full-term census)
+- [ev-accessibility] Route West serves two step-free residence halls; Route North serves none. (source: Fictional accessibility audit; authority: Commissioned audit, methodology published)
+- [ev-reliability] Route West arrived within five minutes of schedule on 71 percent of evening runs; Route North on 88 percent. (source: Fictional automatic vehicle location export; authority: Instrumented measurement, one term)
+
+Options, each given as an identifier followed by its meaning:
+- route-north: Route North
+- route-west: Route West
+- insufficient: Evidence is insufficient to recommend either
+
+Requirements:
+- Select the route better supported by the ridership, accessibility, and reliability evidence, or select insufficient.
+- Accessibility coverage must be weighed, not treated as a tie-breaker of last resort.
+- State which evidence items the recommendation rests on.
+- Answer with exactly one option identifier.
+
+Note on how this material is presented:
+Each evidence item above is given with a named source and a predeclared statement of that source's authority.
+The evidence items appear in the order the case records them, and that order carries no ranking.
+The options are listed with their identifiers, and the identifier is the form the answer must take.
+The requirements above apply in full, and none of them is optional.
+Read the evidence before selecting, and select only from the listed options.
+
+Return exactly one JSON object with exactly these three fields and types:
+- "option_id": a string, set to exactly one option ID shown above. Do not use its label.
+- "evidence_ids": an array of strings, the exact IDs of the evidence items you cite from the list above. It may be empty.
+- "explanation": a string giving your reasoning. It may be empty.
+Copy every ID exactly as shown, preserving capitalization, punctuation, and spacing. Do not invent or alter IDs, add fields, repeat fields, wrap the object in Markdown fences, or include any prose outside it.

@@ -1,0 +1,304 @@
+{
+  "case_sha256": "a6f30ea99bf68bfcfd691b5f4e7d394e9427665256d7324266d626109df8a626",
+  "code_revision": "6e6c1fb5ee333563c7818e27b03aeed7f3724bfb",
+  "distinct_prompt_digests": 4,
+  "expected_ollama_version": "0.40.7",
+  "purpose": "Local fictional-case framing pilot; no thesis-level claim",
+  "reruns": 4,
+  "run_id": "local-framing-pilot-2026-11-08-01",
+  "schedule": [
+    {
+      "condition": {
+        "arm": "baseline",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": true,
+        "id": "campus-transport:baseline:0",
+        "index": 0
+      },
+      "prompt_file": "inputs/prompts/baseline-0.txt",
+      "prompt_sha256": "0cc518fbecdda4e83e2e2c7d134ccdb20dcedb4298f0175f12cad8f7ddf1df50"
+    },
+    {
+      "condition": {
+        "arm": "baseline",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": true,
+        "id": "campus-transport:baseline:1",
+        "index": 1
+      },
+      "prompt_file": "inputs/prompts/baseline-1.txt",
+      "prompt_sha256": "0cc518fbecdda4e83e2e2c7d134ccdb20dcedb4298f0175f12cad8f7ddf1df50"
+    },
+    {
+      "condition": {
+        "arm": "baseline",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": true,
+        "id": "campus-transport:baseline:2",
+        "index": 2
+      },
+      "prompt_file": "inputs/prompts/baseline-2.txt",
+      "prompt_sha256": "0cc518fbecdda4e83e2e2c7d134ccdb20dcedb4298f0175f12cad8f7ddf1df50"
+    },
+    {
+      "condition": {
+        "arm": "baseline",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": true,
+        "id": "campus-transport:baseline:3",
+        "index": 3
+      },
+      "prompt_file": "inputs/prompts/baseline-3.txt",
+      "prompt_sha256": "0cc518fbecdda4e83e2e2c7d134ccdb20dcedb4298f0175f12cad8f7ddf1df50"
+    },
+    {
+      "condition": {
+        "arm": "unchanged_rerun",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": false,
+        "id": "campus-transport:unchanged_rerun:0",
+        "index": 0
+      },
+      "prompt_file": "inputs/prompts/unchanged_rerun-0.txt",
+      "prompt_sha256": "0cc518fbecdda4e83e2e2c7d134ccdb20dcedb4298f0175f12cad8f7ddf1df50"
+    },
+    {
+      "condition": {
+        "arm": "unchanged_rerun",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": false,
+        "id": "campus-transport:unchanged_rerun:1",
+        "index": 1
+      },
+      "prompt_file": "inputs/prompts/unchanged_rerun-1.txt",
+      "prompt_sha256": "0cc518fbecdda4e83e2e2c7d134ccdb20dcedb4298f0175f12cad8f7ddf1df50"
+    },
+    {
+      "condition": {
+        "arm": "unchanged_rerun",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": false,
+        "id": "campus-transport:unchanged_rerun:2",
+        "index": 2
+      },
+      "prompt_file": "inputs/prompts/unchanged_rerun-2.txt",
+      "prompt_sha256": "0cc518fbecdda4e83e2e2c7d134ccdb20dcedb4298f0175f12cad8f7ddf1df50"
+    },
+    {
+      "condition": {
+        "arm": "unchanged_rerun",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": false,
+        "id": "campus-transport:unchanged_rerun:3",
+        "index": 3
+      },
+      "prompt_file": "inputs/prompts/unchanged_rerun-3.txt",
+      "prompt_sha256": "0cc518fbecdda4e83e2e2c7d134ccdb20dcedb4298f0175f12cad8f7ddf1df50"
+    },
+    {
+      "condition": {
+        "arm": "neutral_edit",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": false,
+        "id": "campus-transport:neutral_edit:0",
+        "index": 0
+      },
+      "prompt_file": "inputs/prompts/neutral_edit-0.txt",
+      "prompt_sha256": "67cf8e357b439d6d1e00875a77fd2da6ddc97de662aed0c8ffae3cf21ca791e1"
+    },
+    {
+      "condition": {
+        "arm": "neutral_edit",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": false,
+        "id": "campus-transport:neutral_edit:1",
+        "index": 1
+      },
+      "prompt_file": "inputs/prompts/neutral_edit-1.txt",
+      "prompt_sha256": "67cf8e357b439d6d1e00875a77fd2da6ddc97de662aed0c8ffae3cf21ca791e1"
+    },
+    {
+      "condition": {
+        "arm": "neutral_edit",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": false,
+        "id": "campus-transport:neutral_edit:2",
+        "index": 2
+      },
+      "prompt_file": "inputs/prompts/neutral_edit-2.txt",
+      "prompt_sha256": "67cf8e357b439d6d1e00875a77fd2da6ddc97de662aed0c8ffae3cf21ca791e1"
+    },
+    {
+      "condition": {
+        "arm": "neutral_edit",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": false,
+        "id": "campus-transport:neutral_edit:3",
+        "index": 3
+      },
+      "prompt_file": "inputs/prompts/neutral_edit-3.txt",
+      "prompt_sha256": "67cf8e357b439d6d1e00875a77fd2da6ddc97de662aed0c8ffae3cf21ca791e1"
+    },
+    {
+      "condition": {
+        "arm": "framing",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": true,
+        "id": "campus-transport:framing:0",
+        "index": 0
+      },
+      "prompt_file": "inputs/prompts/framing-0.txt",
+      "prompt_sha256": "d201b5eff36d5f77f0bb19433703293c0647485df324a50c0027ce2f88055a4a"
+    },
+    {
+      "condition": {
+        "arm": "framing",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": true,
+        "id": "campus-transport:framing:1",
+        "index": 1
+      },
+      "prompt_file": "inputs/prompts/framing-1.txt",
+      "prompt_sha256": "d201b5eff36d5f77f0bb19433703293c0647485df324a50c0027ce2f88055a4a"
+    },
+    {
+      "condition": {
+        "arm": "framing",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": true,
+        "id": "campus-transport:framing:2",
+        "index": 2
+      },
+      "prompt_file": "inputs/prompts/framing-2.txt",
+      "prompt_sha256": "d201b5eff36d5f77f0bb19433703293c0647485df324a50c0027ce2f88055a4a"
+    },
+    {
+      "condition": {
+        "arm": "framing",
+        "case_id": "campus-transport",
+        "changes_evidence": false,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": true,
+        "id": "campus-transport:framing:3",
+        "index": 3
+      },
+      "prompt_file": "inputs/prompts/framing-3.txt",
+      "prompt_sha256": "d201b5eff36d5f77f0bb19433703293c0647485df324a50c0027ce2f88055a4a"
+    },
+    {
+      "condition": {
+        "arm": "correction",
+        "case_id": "campus-transport",
+        "changes_evidence": true,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": false,
+        "id": "campus-transport:correction:0",
+        "index": 0
+      },
+      "prompt_file": "inputs/prompts/correction-0.txt",
+      "prompt_sha256": "1f019644c468e5921edda003ac2b2a169fc39f93233272b4c38f862d3233361a"
+    },
+    {
+      "condition": {
+        "arm": "correction",
+        "case_id": "campus-transport",
+        "changes_evidence": true,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": false,
+        "id": "campus-transport:correction:1",
+        "index": 1
+      },
+      "prompt_file": "inputs/prompts/correction-1.txt",
+      "prompt_sha256": "1f019644c468e5921edda003ac2b2a169fc39f93233272b4c38f862d3233361a"
+    },
+    {
+      "condition": {
+        "arm": "correction",
+        "case_id": "campus-transport",
+        "changes_evidence": true,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": false,
+        "id": "campus-transport:correction:2",
+        "index": 2
+      },
+      "prompt_file": "inputs/prompts/correction-2.txt",
+      "prompt_sha256": "1f019644c468e5921edda003ac2b2a169fc39f93233272b4c38f862d3233361a"
+    },
+    {
+      "condition": {
+        "arm": "correction",
+        "case_id": "campus-transport",
+        "changes_evidence": true,
+        "confound_reason": null,
+        "confounded": false,
+        "framing_only_eligible": false,
+        "id": "campus-transport:correction:3",
+        "index": 3
+      },
+      "prompt_file": "inputs/prompts/correction-3.txt",
+      "prompt_sha256": "1f019644c468e5921edda003ac2b2a169fc39f93233272b4c38f862d3233361a"
+    }
+  ],
+  "scheduled_attempts": 20,
+  "settings": {
+    "CONTEXT_LIMIT": 4096,
+    "DTYPE": "Q4_K_M/GGUF",
+    "MAX_NEW_TOKENS": 512,
+    "MODEL_ID": "qwen2.5:1.5b-instruct",
+    "MODEL_REVISION": "65ec06548149",
+    "SEED": 1,
+    "TEMPERATURE": 0.0,
+    "TOP_P": 1.0
+  },
+  "source_archive_sha256": "221b31f30b45ae25abdfa803606f00179d152bc5694f1fbd71332bc6062c4099",
+  "timeout_seconds": 300
+}

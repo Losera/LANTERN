@@ -1,0 +1,62 @@
+{
+  "attempts": 20,
+  "attempts_sha256": "29a7c7578f469bee5865026181d9405316e4978d731beedeb48c0ecbe89e521e",
+  "choices_by_arm": {
+    "baseline": {
+      "route-west": 4
+    },
+    "correction": {
+      "route-west": 4
+    },
+    "framing": {
+      "route-west": 4
+    },
+    "neutral_edit": {
+      "route-west": 4
+    },
+    "unchanged_rerun": {
+      "route-west": 4
+    }
+  },
+  "correction_pairs": [
+    {
+      "baseline_option": "route-west",
+      "case_id": "campus-transport",
+      "contrast_arm": "correction",
+      "contrast_option": "route-west",
+      "reason": "recorded choices agree",
+      "verdict": "stable"
+    }
+  ],
+  "effect": "none_measured",
+  "export_matches_records": true,
+  "framing_pairs": [
+    {
+      "baseline_option": "route-west",
+      "case_id": "campus-transport",
+      "contrast_arm": "framing",
+      "contrast_option": "route-west",
+      "reason": "recorded choices agree",
+      "verdict": "stable"
+    }
+  ],
+  "frozen_hashes_verified": true,
+  "limitations": [
+    "Fictional-case pilot; no thesis-level claim",
+    "Correctness remains unknown",
+    "Neutral/rerun choices do not gate analysis.py framing verdict",
+    "Unknown provenance fields remain explicit; see records"
+  ],
+  "model_runtime_identity_consistent": true,
+  "outcomes": {
+    "decision": 20
+  },
+  "raw_outputs_reparsed_without_modification": 20,
+  "result": "PASS",
+  "resume_on_copy": {
+    "appended": 0,
+    "dataset_bytes_unchanged": true,
+    "model_calls": 0,
+    "resumed": 20
+  }
+}
