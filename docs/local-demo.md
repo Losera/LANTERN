@@ -31,17 +31,42 @@ needed. The demo refuses a model whose digest no longer matches:
 ollama pull qwen2.5:1.5b-instruct
 ```
 
-Run the full pilot and open its frontend:
+Start the guided workflow:
 
 ```bash
 make demo
 ```
 
-Open <http://localhost:8000> after the command prints the URL. Each invocation
-creates a fresh dataset under `.demo/runs/`, runs five arms with four repetitions
-each, then serves a separate frontend preview containing that run's export.
-The terminal prints the absolute run directory. Keep it for raw responses,
-the case copy, runtime preflight, and JSON/JavaScript exports.
+The terminal pauses after each numbered stage. Press Enter when you are ready
+to explain the next step; Ctrl+C stops the walkthrough.
+
+1. **Evidence input:** read the actual fictional question, route options,
+   evidence claims, sources, relevance labels, and decision requirements.
+2. **Validation:** validate the case and check the installed model and running
+   Ollama version. Show the fixed temperature, seed, and output limit.
+3. **Conditions:** expand the case into five arms and four repetitions per arm.
+   Explain each arm and show all 20 scheduled condition IDs.
+4. **Prompts:** display the exact baseline prompt and each other arm's changes
+   as a diff, including the unchanged rerun. All 20 prompt files and their
+   hashes are saved before execution.
+5. **Execution:** run the existing CLI once over the 20 conditions. The terminal
+   prints the equivalent command so you can reproduce it directly. This command
+   generates, parses, records, analyzes, and exports; it does not grade.
+6. **Records:** show every arm's recorded outcomes and choices, then inspect
+   the first baseline and framing responses as verbatim raw text. Failures stay
+   in the dataset and in the counts.
+7. **Analysis:** recompute the summary from the records and check it matches the
+   export. Show the framing comparison, correction separately, and the total
+   attempt denominator. Unchanged-rerun and neutral-edit controls are visible
+   for interpretation; their choices do not automatically gate the verdict.
+8. **Frontend:** identify the export and its label, then start the preview.
+   Open <http://localhost:8000> when the URL appears.
+
+Each invocation creates a fresh dataset under `.demo/runs/`. The terminal prints
+its absolute directory. Keep the case copy, preflight, `conditions.json`,
+`prompts/`, `attempts.jsonl`, `run.stdout.json`, `summary.json`, and the exports
+to inspect how evidence became the displayed result. The preview contains that
+run's data, separate from the repository's default frontend data.
 
 Press Ctrl+C to stop the preview before the next judge. Run `make demo` again
 for another independent pilot. These outputs are ignored by Git; copy them to
@@ -55,7 +80,14 @@ correctness remains unknown. It uses local Ollama, not Alpha.
 
 ## Other commands
 
-Generate evidence without starting a server:
+Show the same eight stages without waiting for Enter:
+
+```bash
+make demo-auto
+```
+
+Piped/noninteractive invocations also skip pauses. For an unattended run that
+generates evidence without the walkthrough or a web server:
 
 ```bash
 make demo-run
