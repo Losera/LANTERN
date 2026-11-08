@@ -27,7 +27,7 @@ plausible data is indistinguishable from a result once it reaches the export.
 | `runner/trace.py` | Implemented | Oracle event emission and field discipline |
 | `runner/analysis.py` | Implemented | Paired comparison and counting |
 | `runner/export.py` | Implemented | The presentation projection |
-| `runner/models.py` | Mixed | `Provenance` implemented; the adapter is a seam |
+| `runner/models.py` | Implemented | Provenance and the approved local Ollama adapter; no Alpha adapter |
 | `runner/tools.py` | Mixed | Proposal recording implemented; execution is a seam |
 | `runner/prompts.py` | Implemented | Prompt rendering and the prompt digest |
 | `runner/parsing.py` | Seam | Reading output and grading it |
@@ -38,7 +38,6 @@ The seams and what each one waits on:
 | --- | --- |
 | `parsing.parse` | Option vocabulary, refusal and truncation criteria |
 | `parsing.grade` | The agreed rubric |
-| `models.UnapprovedAdapter.generate` | Model, revision, environment, generation settings |
 | `tools.ToolRegistry.execute` | Tool contract, result format, identifier scheme |
 
 `prompts.render` is no longer a seam: it returns a `PromptPayload` and the
@@ -49,6 +48,14 @@ rendered by label while the rubric asks for an option identifier. The lane does
 not detect either, because its seam check only establishes that implemented code
 does not refuse. Treat the independent variable as unimplemented until the
 rendering issue lands.
+
+The local Ollama adapter landed in PR 35 and is no longer a refusing seam,
+despite retaining the class name `UnapprovedAdapter`. The offline lane calls its
+real generation method with synthetic HTTP responses, checking request settings,
+raw output, local provenance, truncation, and explicit API/transport failures.
+It makes no daemon connection and performs no model inference. Passing fixtures
+does not verify installed model identity, real runtime behavior, or Alpha
+execution; the three remaining seams are parsing, grading, and tool execution.
 
 ## Case document
 
