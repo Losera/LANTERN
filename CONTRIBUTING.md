@@ -91,6 +91,21 @@ current owner/scope/state; comments preserve dated progress and evidence. Includ
 objective, acceptance command or walkthrough, dependencies, blockers, and handoff.
 Done means checked, explained, reviewed, and integrated, not just generated.
 
+A seam issue is additionally not Done until its `tools/check_app.py` promotion is
+merged. Implementing a seam inverts what the lane asserts about it: `check_seams`
+requires that a seam refuses and that implemented code does not. Landing an
+implementation without moving its callable from `seams` to `implemented` leaves the
+lane asserting the opposite of the truth, and the lane still passes. The reverse
+mistake is worse: promoting a callable that cannot yet be implemented removes a
+refusal that other modules rely on as a readiness gate, and a stub's return value is
+indistinguishable from a result once it reaches the export.
+
+`tools/check_app.py` is lead-owned, so the promotion is a separate lead-applied step
+rather than part of a seam claim. Name it in the issue's acceptance command and keep
+the issue open until it is on `main`. Both directions have occurred: `prompts.render`,
+`UnapprovedAdapter.generate` and `parsing.parse` each sat implemented but unpromoted,
+and `parsing.grade` was promoted while still unimplementable.
+
 If `gh` is unavailable, use GitHub's web interface or paste the issue body and
 comments into the session. Without current issue context and claim approval,
 continue read-only. Do not invent a local lock or assume cached context is fresh.
