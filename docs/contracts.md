@@ -104,6 +104,20 @@ One JSON object per file under `fixtures/cases/`. Unknown fields are rejected,
 following the oracle's strict-field discipline: `relevent: false` must fail
 loudly rather than default to relevant.
 
+A rubric carries two separate lists. `requirements` are instructions to the
+decision-maker and are rendered into the prompt. `predeclarations` are optional
+statements the team fixes in advance for its own interpretation and are **never
+rendered**.
+
+The split is a measurement requirement, not presentation. A predeclaration such
+as "timetable position and newsletter tone must not affect the selection" names
+exactly the material the framing arm manipulates, so rendering it would instruct
+the subject to resist the manipulation and an unchanged answer would show only
+that an instruction was obeyed. The irrelevance is already carried structurally
+by each evidence item's and cue's `relevant` flag, so keeping the prose out of
+the prompt loses nothing. The offline lane fails if a predeclaration reaches the
+rendered text.
+
 ```json
 {
   "schema_version": 0,

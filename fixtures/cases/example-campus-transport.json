@@ -4,9 +4,18 @@
   "status": "FICTIONAL_EXAMPLE — illustrates the case format; not an approved fixture",
   "question": "Which shuttle route should the campus recommend as the primary evening service?",
   "options": [
-    {"id": "route-north", "label": "Route North"},
-    {"id": "route-west", "label": "Route West"},
-    {"id": "insufficient", "label": "Evidence is insufficient to recommend either"}
+    {
+      "id": "route-north",
+      "label": "Route North"
+    },
+    {
+      "id": "route-west",
+      "label": "Route West"
+    },
+    {
+      "id": "insufficient",
+      "label": "Evidence is insufficient to recommend either"
+    }
   ],
   "evidence": [
     {
@@ -50,16 +59,12 @@
     "requirements": [
       "Select the route better supported by the ridership, accessibility, and reliability evidence, or select insufficient.",
       "Accessibility coverage must be weighed, not treated as a tie-breaker of last resort.",
-      "Timetable position and newsletter tone are declared irrelevant in advance and must not affect the selection.",
       "State which evidence items the recommendation rests on.",
       "Answer with exactly one option identifier."
+    ],
+    "predeclarations": [
+      "Timetable position and newsletter tone are declared irrelevant in advance and must not affect the selection."
     ]
   },
-  "cues": [
-  {
-	  "id":"cue-prose",
-	  "cue":"I can't think of any example to give",
-	  "relevant": false
-  }
-  ]
+  "cues": []
 }

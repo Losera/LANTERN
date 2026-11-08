@@ -55,10 +55,24 @@ class Rubric:
 
     This records *which* rubric a case was judged under so an export can be
     read later. It does not implement the rule.
+
+    ``requirements`` are instructions to the decision-maker and are rendered
+    into the prompt. ``predeclarations`` are statements the team fixes in
+    advance for its own interpretation and are **never rendered**: they record
+    what was declared before attempts began without telling the subject.
+
+    The distinction is a measurement one. A predeclaration such as "timetable
+    position and newsletter tone must not affect the selection" names exactly
+    the material the framing arm manipulates. Rendering it would instruct the
+    subject to resist the manipulation, so an unchanged answer would show only
+    that an instruction was followed. The irrelevance itself is already carried
+    structurally by each item's ``relevant`` flag, so nothing is lost by
+    keeping the prose out of the prompt.
     """
 
     id: str
     requirements: tuple[str, ...]
+    predeclarations: tuple[str, ...] = ()
 
 @dataclass(frozen=True)
 class Cue:
@@ -222,14 +236,27 @@ def validate_case(data: object, *, where: str = "case") -> Case:
     #UPDATE WITH HELP
     raw_rubric = _require(data, "rubric", dict, where)
     spot = f"{where}.rubric"
-    _exact_keys(raw_rubric, {"id", "requirements"}, spot)
+    _exact_keys(raw_rubric, {"id", "requirements", "predeclarations"}, spot)
     requirements = _require(raw_rubric, "requirements", list, spot)
     if not requirements:
         raise CaseError(f"{spot}: a rubric must state at least one requirement")
     for index, requirement in enumerate(requirements):
         if not isinstance(requirement, str) or not requirement.strip():
             raise CaseError(f"{spot}.requirements[{index}]: must be a non-empty string")
-    rubric = Rubric(_require(raw_rubric, "id", str, spot), tuple(requirements))
+    # Optional, so an existing case without predeclarations stays valid.
+    raw_predeclarations = raw_rubric.get("predeclarations", [])
+    if not isinstance(raw_predeclarations, list):
+        raise CaseError(f"{spot}.predeclarations: must be a list of strings")
+    for index, statement in enumerate(raw_predeclarations):
+        if not isinstance(statement, str) or not statement.strip():
+            raise CaseError(
+                f"{spot}.predeclarations[{index}]: must be a non-empty string"
+            )
+    rubric = Rubric(
+        _require(raw_rubric, "id", str, spot),
+        tuple(requirements),
+        tuple(raw_predeclarations),
+    )
 
     return Case(
         id=case_id,
