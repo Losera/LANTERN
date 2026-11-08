@@ -1,0 +1,10 @@
+Sun Nov  8 02:43:57 AM UTC 2026
+alphagpu01
+Slurm job: 175890
+GPU 0: NVIDIA H100 80GB HBM3 (UUID: GPU-e58a71b0-b2cb-aab1-486f-031dbc566284)
+  MIG 1g.10gb     Device  0: (UUID: MIG-1b426bd2-3e0b-5557-b486-686f416d7b5c)
+NVIDIA H100 80GB HBM3, 580.126.09
+`generation_config` default values have been modified to match model-specific defaults: {'do_sample': True, 'temperature': 0.7, 'top_k': 20, 'top_p': 0.8, 'pad_token_id': 151643, 'bos_token_id': 151643, 'eos_token_id': [151645, 151643]}. If this is not desired, please set these values explicitly.
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]Loading checkpoint shards:  33%|███▎      | 1/3 [00:00<00:01,  1.50it/s]Loading checkpoint shards:  67%|██████▋   | 2/3 [00:01<00:00,  1.43it/s]Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  2.11it/s]
+Both Alpha diagnostic probes passed
+Sun Nov  8 02:45:14 AM UTC 2026
