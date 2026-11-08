@@ -142,6 +142,11 @@ Verification in this worktree on the unstaged revision:
   under #16. Existing ownership remains intact; no coordination messages have
   been posted to other issues by this session.
 
+**Correction, 2026-11-08:** the lead confirmed that Teammate B owns #9 and
+`runner/parsing.py`, and that no branch or worktree exists for it yet. The
+"Kai, #9" bullet above records the assignment at the time of this handoff. Its
+coordination requirements still apply, addressed to B.
+
 ### Readiness and publication gate
 
 Keep the format provisional until the approved prompt/parser dependencies and

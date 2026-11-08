@@ -112,6 +112,10 @@ tokens, and explicit greedy controls. No Alpha runner integration is included.
 | Cases and matching rules | B: finalize issue 25 and supply the agreed frozen inputs; broader issue 26 remains deferred |
 | Local adapter and parser | C / Kai: continue issue 27; implement issue 9 when its matching-rule dependency is settled |
 
+**Correction, 2026-11-08:** the lead transferred #9 and `runner/parsing.py` to
+Teammate B; no branch or worktree exists for it yet. Kai retains #27. The lane
+table above records the earlier assignment.
+
 Use separate worktrees with one writer per path. Keep evidence-row edits and B's
 fallback wording coordinated in `docs/alpha.md`. While the GPU job runs, A can
 review already-prepared work; do not create another writer for an occupied

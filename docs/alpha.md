@@ -27,6 +27,14 @@ sections "What you're getting," "The three flags every job needs," and "Limits."
 The planning session could not retrieve that page; confirm current rules with
 organizers before allocating.
 
+**Confirmed November 8, 2026:** the article was retrieved read-only and every
+value in the snapshot table below matched, so no documented value has drifted.
+The article records "Modified on Fri, 6 Nov at 4:54 PM" and an event window of
+Friday, November 6 to Sunday, November 09. This reading came through a
+summarizing fetch rather than a retained verbatim capture, so it is weaker
+evidence than a hash-verified file; retain a verbatim capture before an
+allocation decision cites it.
+
 | Documented snapshot rule | Value |
 | --- | --- |
 | GPU slice | 10 GB MIG; request `--gres=gpu:1g.10gb:1` |
@@ -153,3 +161,12 @@ Team eligibility, presentation duration, permitted advance preparation, and
 pre-event Lean-artifact eligibility remain unresolved. Keep public source and
 AI-use disclosure requirements visible. The [source manifest](research.md#source-manifest)
 links the retained PDF without copying it into this repository.
+
+**Status, November 8, 2026:** the allocation article was retrieved and states an
+event window of Friday, November 6 to Sunday, November 09. That is wider than
+the November 7-8 schedule recorded above rather than a contradictory date
+header. The article contains no project-form deadline, so the PDF's Saturday
+11:59 pm deadline remains uncorroborated. The live hacker guide returned only
+the Google Docs application shell with no document text, so the schedule
+difference, team eligibility, presentation duration, permitted advance
+preparation, and pre-event Lean-artifact eligibility all remain unresolved.

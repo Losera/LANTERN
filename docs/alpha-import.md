@@ -148,7 +148,7 @@ The prompt should ask for one JSON object with exactly three fields:
 ```
 
 This is the approved response contract for coordination with B under #8/#25 and
-Kai under #9, not a newly implemented parser. The importer continues passing the exact
+#9, not a newly implemented parser. The importer continues passing the exact
 response string to `runner.parsing.parse`; no JSON-response parser is added here.
 
 - Require one object with optional surrounding whitespace. Missing or extra
