@@ -1,0 +1,4 @@
+alphagpu01
+Slurm job: 175560
+GPU 0: NVIDIA H100 80GB HBM3 (UUID: GPU-e58a71b0-b2cb-aab1-486f-031dbc566284)
+  MIG 1g.10gb     Device  0: (UUID: MIG-268907a6-d048-527d-bdd3-13b682d69f36)
