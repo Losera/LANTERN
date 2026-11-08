@@ -242,16 +242,29 @@ def parse(raw_output: str, case: Case) -> Decision:
 
 
 def grade(decision: Decision, case: Case) -> Correctness:
-    #grade is supposed to analyze the rubric, this isnt really possible at the moment
-    signal = decision.signal
-    if signal.choice_in_rubric == True:
-        #for now we assume correctness as agreeing with the model
-        return Correctness.CORRECT
-    elif signal.choice_not_in_rubric:
-        return Correctness.INCORRECT
-    elif signal.transport_error or signal.truncated or signal.refused or not signal.decodable:
-        return Correctness.UNKNOWN
-    return Correctness.UNKNOWN
+    """SEAM: score a readable decision against the frozen grading key.
+
+    docs/evaluation.md requires requirement-level grading: each rubric
+    requirement is assessed as satisfied, violated, or indeterminate against a
+    frozen key that states an observable pass condition, a failure condition,
+    and the evidence making it decidable. No such key exists in this
+    repository, and this signature cannot reach one, so there is nothing to
+    grade against.
+
+    Agreement with a user, baseline, or in-rubric choice is explicitly *not* a
+    substitute: docs/evaluation.md records that it "cannot substitute for
+    requirement-level grading". Returning a value here would let
+    :func:`runner.alpha_import.import_bundle` stamp a correctness onto an
+    append-only record that no approved rubric supports, which is exactly the
+    failure the offline lane's seam check guards.
+
+    Raises:
+        NotImplementedError: always, until a frozen grading key is approved.
+    """
+    raise NotImplementedError(
+        "grading is a seam: no frozen grading key is approved. "
+        "See docs/evaluation.md 'Reproducible correctness grading'."
+    )
 
 
 __all__ = ["ParseSignal", "Mention", "Decision", "parse", "grade"]

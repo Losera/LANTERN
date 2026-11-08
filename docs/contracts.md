@@ -30,14 +30,13 @@ plausible data is indistinguishable from a result once it reaches the export.
 | `runner/models.py` | Implemented | Provenance and the approved local Ollama adapter; no Alpha adapter |
 | `runner/tools.py` | Mixed | Proposal recording implemented; execution is a seam |
 | `runner/prompts.py` | Implemented | Prompt rendering and the prompt digest |
-| `runner/parsing.py` | Seam | Reading output and grading it |
+| `runner/parsing.py` | Mixed | Reading output implemented; grading is a seam |
 
 The seams and what each one waits on:
 
 | Seam | Blocked on |
 | --- | --- |
-| `parsing.parse` | Option vocabulary, refusal and truncation criteria |
-| `parsing.grade` | The agreed rubric |
+| `parsing.grade` | A frozen grading key for every rubric requirement |
 | `tools.ToolRegistry.execute` | Tool contract, result format, identifier scheme |
 
 `prompts.render` is no longer a seam: it returns a `PromptPayload` and the
@@ -49,13 +48,31 @@ not detect either, because its seam check only establishes that implemented code
 does not refuse. Treat the independent variable as unimplemented until the
 rendering issue lands.
 
+`parsing.parse` is no longer a seam: it landed in PR 46 and PR 49, and the offline
+lane exercises the real reader against a decision, malformed text, and an
+out-of-rubric choice.
+
+`parsing.grade` was briefly not a seam. Commit `e5cf45d`, pushed directly to `main`
+without a branch, pull request, or semantic review, replaced its refusal with a body
+that returned `CORRECT` for any in-rubric choice. That is the substitution
+[evaluation](evaluation.md) forbids: correctness is requirement-level satisfaction of
+a frozen grading key, and agreement with a choice "cannot substitute for
+requirement-level grading". The consequence was not local. Both
+`alpha_import._record` and `alpha_batch.interpretation_ready` caught
+`NotImplementedError` from `grade` as their readiness gate, so the refusal was the
+single tripwire keeping ungraded attempts out of the append-only dataset. With it
+removed, the importer would have stamped a correctness no approved rubric supports,
+and the offline lane went red for one commit. The seam is restored, and its refusal
+now names the missing grading key rather than the rubric. The draft is retained on
+`wip/grader-draft-b` for issue 9.
+
 The local Ollama adapter landed in PR 35 and is no longer a refusing seam,
 despite retaining the class name `UnapprovedAdapter`. The offline lane calls its
 real generation method with synthetic HTTP responses, checking request settings,
 raw output, local provenance, truncation, and explicit API/transport failures.
 It makes no daemon connection and performs no model inference. Passing fixtures
 does not verify installed model identity, real runtime behavior, or Alpha
-execution; the three remaining seams are parsing, grading, and tool execution.
+execution; the two remaining seams are grading and tool execution.
 
 ## Case document
 

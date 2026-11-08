@@ -1,5 +1,57 @@
 # Current status and handoff
 
+## Grading seam restored: November 8, 2026 UTC
+
+Objective: return `main` to a green offline lane after `e5cf45d` removed the grading
+seam. Branch `fix/restore-grading-seam` in `/tmp/LANTERN-grading-seam`, based on
+`e5cf45d419a6ce2c5233fe500eb4e656939c6c24`. Awaiting the lead's semantic review
+before commit; nothing is merged.
+
+`e5cf45d` was pushed directly to `main` with no branch, pull request, or review. It
+gave `parsing.grade` a body returning `CORRECT` for any in-rubric choice, which
+contradicts [evaluation](evaluation.md)'s rule that correctness is requirement-level
+satisfaction of a frozen grading key. Its outcome branch was unreachable, sitting
+after the in-rubric test, and duplicated `outcomes.classify`.
+
+The breakage was not visible from the diff. `alpha_import._record` and
+`alpha_batch.interpretation_ready` both caught `NotImplementedError` from `grade` as
+their readiness gate, so the refusal was the only thing keeping ungraded attempts out
+of the append-only dataset. Removing it would have let the importer record a
+correctness no approved rubric supports. The repair restores the refusal and names the
+missing grading key as the blocker. B's draft is preserved on `wip/grader-draft-b` and
+linked from issue 9; nothing was discarded.
+
+No grading key, approval record, or rubric artifact exists in the repository, and
+`grade(decision, case)` has no parameter that could reach one. Requirement-level
+grading therefore remains blocked on a lead contract decision about key access, which
+is recorded as the open question for issue 9.
+
+| Lane | Status | Evidence or limitation |
+| --- | --- | --- |
+| Application self-tests | Passed | `python3 tools/check_app.py --self-test`: 24 tests |
+| Application checks | Passed | `python3 tools/check_app.py`: PASS, `2 seams refusing`, 5 implemented callables, 15 modules; `oracle_conformance` still `NOT_RUN` |
+| Parser/import integration | Passed | `python3 tools/test_alpha_parsing.py`: 17 tests OK, 2 skipped as `requires PR #44 in combined checkout`; `python3 tools/test_alpha_import.py`: 39 tests OK |
+| Alpha helper and diagnostics | Passed | `python3 tools/test_alpha_submit.py` and `python3 tools/test_alpha_diagnostic.py`: OK |
+| Case validation | Passed | `python3 -m runner.cli validate`: PASS |
+| Documentation lane | Passed | `python3 tools/check_bootstrap.py --self-test` OK; `check_bootstrap.py`: 26 documents, 151 links; 55 external URLs not fetched |
+| Whitespace | Passed | `git diff --check` clean |
+| CI at this head | Not run | The branch is uncommitted and unpushed; GitHub has not evaluated it |
+| Grading correctness | Not established | No frozen key exists; the seam refuses rather than grades |
+| Renderer condition-sensitivity | Still broken | `prompts.render` ignores its `condition`; unchanged by this branch |
+| `docs/evaluation.md` conflict markers | Still present | Lines 44-57 from `806deea`; a separate repair |
+
+These lanes establish that the skeleton coheres and the seam refuses again. They
+establish nothing about Alpha connectivity, model behaviour, rubric correctness,
+design-oracle conformance, or reduced bias.
+
+This is the sixth occurrence of the pattern [issue 22](https://github.com/Losera/LANTERN/issues/22)
+tracks. The first four are recorded in this file; PR 46's zero-review merge is the
+fifth and is recorded on that issue. The path claim
+held; the branch-and-review step did not. Three of the suites that detect this class
+of regression -- `test_alpha_parsing.py`, `test_alpha_import.py`, and
+`test_alpha_diagnostic.py` -- are not in CI, which is why the push landed green at the
+PR gate and red only on `main`. Adding them is issue 18's remaining work.
+
 ## Alpha runtime evidence: November 8, 2026 UTC
 
 This dated observation supplements the historical checkpoints below; it does not
