@@ -192,6 +192,33 @@ def check_adapter() -> None:
                     raise ValueError("adapter changed local provenance or invented memory usage")
 
 
+def check_parser(case) -> None:
+    """Exercise the real response reader without grading or runtime metadata."""
+    from runner import parsing
+    from runner.outcomes import Outcome, classify
+
+    def response(option):
+        return json.dumps({"option_id": option, "evidence_ids": [], "explanation": ""})
+
+    unknown = "checker-unknown-option"
+    while unknown in {option.id for option in case.options}:
+        unknown += "-unknown"
+    for raw, expected in (
+        (response(case.options[0].id), Outcome.DECISION),
+        ("not JSON", Outcome.MALFORMED),
+        (response(unknown), Outcome.INVALID_CHOICE),
+    ):
+        decision = parsing.parse(raw, case)
+        if not isinstance(decision, parsing.Decision) or not isinstance(decision.signal, parsing.ParseSignal):
+            raise ValueError("parser must return a Decision with a ParseSignal")
+        if classify(decision.signal) is not expected or decision.signal.refused:
+            raise ValueError(f"parser must classify {raw!r} as {expected.value} without refusal")
+        if expected is Outcome.DECISION and (
+            decision.option_id != case.options[0].id or decision.received_explanation != ""
+        ):
+            raise ValueError("parser lost the exact option or empty explanation")
+
+
 def check_seams(errors: list[str], counts: Counter) -> None:
     """Seams must refuse; implemented code must not raise NotImplementedError.
 
@@ -201,13 +228,12 @@ def check_seams(errors: list[str], counts: Counter) -> None:
     from runner import prompts, tools
     from runner.cases import load_case
     from runner.conditions import expand
-    from runner.parsing import grade, parse
+    from runner.parsing import grade
 
     case = load_case(ROOT / "fixtures/cases/example-campus-transport.json")
     condition = expand(case.id)[0]
 
     seams = (
-        ("runner.parsing.parse", lambda: parse("text", case)),
         ("runner.parsing.grade", lambda: grade(None, case)),
         ("runner.tools.ToolRegistry.execute",
          lambda: tools.ToolRegistry().execute(
@@ -228,6 +254,7 @@ def check_seams(errors: list[str], counts: Counter) -> None:
         errors.append(f"{label}: a seam returned a value instead of refusing")
 
     implemented = (
+        ("runner.parsing.parse", lambda: check_parser(case)),
         ("runner.prompts.digest", lambda: prompts.digest("x")),
         ("runner.prompts.render", lambda: prompts.render(case, condition)),
         ("runner.models.UnapprovedAdapter.generate", check_adapter),
@@ -775,8 +802,8 @@ class CheckerTests(unittest.TestCase):
                 patch.object(socket, "create_connection", side_effect=AssertionError("network forbidden")) as connections:
             errors, counts, oracle = check(ROOT)
         self.assertEqual(errors, [])
-        self.assertEqual(counts["seams refusing"], 3)
-        self.assertEqual(counts["implemented callables"], 4)
+        self.assertEqual(counts["seams refusing"], 2)
+        self.assertEqual(counts["implemented callables"], 5)
         self.assertEqual(oracle["status"], "NOT_RUN")
         sockets.assert_not_called()
         connections.assert_not_called()
@@ -825,8 +852,8 @@ class CheckerTests(unittest.TestCase):
 
     def test_seam_check_catches_an_implemented_seam(self):
         from runner import parsing
-        original = parsing.parse
-        parsing.parse = lambda raw, case: None
+        original = parsing.grade
+        parsing.grade = lambda decision, case: None
         try:
             errors: list[str] = []
             check_seams(errors, Counter())
@@ -835,7 +862,27 @@ class CheckerTests(unittest.TestCase):
                 errors,
             )
         finally:
-            parsing.parse = original
+            parsing.grade = original
+
+    def test_parser_check_catches_restored_seam(self):
+        from runner import parsing
+
+        with patch.object(parsing, "parse", side_effect=NotImplementedError("regressed")):
+            errors: list[str] = []
+            check_seams(errors, Counter())
+        self.assertTrue(any("runner.parsing.parse: documented as implemented but refused" in e
+                            for e in errors), errors)
+
+    def test_parser_check_catches_plausible_but_wrong_results(self):
+        from runner import parsing
+
+        for result in [None, parsing.Decision("", parsing.ParseSignal()),
+                       parsing.Decision("invented", parsing.ParseSignal(decodable=True, choice_in_rubric=True))]:
+            with self.subTest(result=result):
+                with patch.object(parsing, "parse", return_value=result):
+                    errors: list[str] = []
+                    check_seams(errors, Counter())
+                self.assertTrue(any("runner.parsing.parse:" in e for e in errors), errors)
 
     def test_seam_check_catches_an_implemented_callable_that_refuses(self):
         """The mirror guard: a promoted seam must not quietly start refusing.

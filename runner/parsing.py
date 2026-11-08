@@ -216,22 +216,6 @@ def parse(raw_output: str, case: Case) -> Decision:
         return malformed()
         
     known_options = {option.id for option in case.options}
-    if option_id not in known_options:
-        return Decision(
-            option_id=option_id,
-            signal=ParseSignal(
-                decodable=True,
-                choice_in_rubric=False,
-                refused=False,
-            ),
-            correctness=Correctness.UNKNOWN,
-            mentions=tuple(
-                Mention(source=evidence_id, supported=False, evidence_id=None)
-                for evidence_id in evidence_ids
-            ),
-            received_explanation=explanation,
-        )
-        
     mentions = []
     for evidence_id in evidence_ids:
         item = case.evidence_by_id(evidence_id)
@@ -247,7 +231,7 @@ def parse(raw_output: str, case: Case) -> Decision:
         option_id=option_id,
         signal=ParseSignal(
             decodable=True,
-            choice_in_rubric=True,
+            choice_in_rubric=option_id in known_options,
             refused=False,
         ),
         correctness=Correctness.UNKNOWN,
