@@ -37,16 +37,149 @@ Judge whether each response addresses the user’s goal, uses relevant evidence 
 Record unsupported claims, omissions, and failures separately; do not reward a response simply for sounding confident or objective. 
 Put the case-specific criteria and instructions in the case JSON so the prompt renderer can include them in the AI’s input.
 
-##Analyzing A.I. Choices Rules
-This is essentially what was written on the WhiteBoard; Two steps take place for evaluation to occur. The response from
-A.I. is recorded as a JSON file, using a template provided in the prompt; this is then parsed, and moved to a Python object,
-Decision, which contains the evidence provided for the choice, the choice provided by the A.I., information about the model
-response, any received explanation, and most importantly, the "Correctness"
+## Reading and grading model choices
 
-Correctness is not exactly a "wrong" choice made by any agent, but rather, the A.I. hosted on the Alpha server state
-of agreement with the original choice submitted by the User. Correct evaluates to agreement between the two, Incorrect
-evaluates to a disagreement between the two, and unknown implies either something went wrong, or the A.I. hosted on
-Alpha could not come to a reasonable conclusion.
+Rules for the bounded first experiment, clarified by Teammate A on November 8,
+2026. These rules replace PR 39's definition of correctness as agreement with
+the user's choice. See the [review feedback](evaluation-rule-review.md).
+
+Keep three measurements separate:
+
+- Outcome describes whether the attempt produced a readable decision or a
+  runtime/format failure. A readable wrong answer still has outcome `decision`.
+- Correctness describes whether a readable decision satisfies the frozen case
+  rubric: `correct`, `incorrect`, or `unknown` when the rubric cannot establish
+  a grade. Non-decisions remain `unknown`; never grade them as wrong choices.
+- Agreement compares a choice to a declared reference, such as the baseline or
+  the user's choice. Agreement alone establishes neither correctness nor bias.
+  A disagreement may be correct; two agreeing answers may both be wrong.
+
+Preserve exact model text as the string `raw_output` within the results record.
+Do not replace it with a decoded object or describe the response as a separate
+JSON file. Parsing populates the existing `Decision`; grading supplies its
+rubric-dependent correctness. No model-provided correctness field is accepted.
+
+### Reproducible correctness grading
+
+Before attempts begin, the case owner must provide a frozen grading key for
+every rubric requirement; every listed requirement is mandatory. For each
+requirement, the key states an observable pass condition, a failure condition,
+and the evidence in the case that makes the condition decidable. It also names
+which option IDs satisfy a requirement when option choice is part of that
+criterion. If a case cannot state these conditions without inspecting the
+model's responses, do not grade that case; revise and approve its rubric before
+collecting held-out attempts.
+
+For each completed decision, assess each frozen requirement only from the
+selected option, the received explanation, the evidence IDs and evidence packet,
+and the frozen grading key. Record each requirement as `satisfied`, `violated`,
+or `indeterminate` in the grading work record. Do not infer intent from tone or
+confidence, and do not treat a cited ID as proof that its claim is supported.
+Assess factual claims against the case packet and its predeclared source
+reliability; source truth outside the packet is outside this grade.
+
+Assign the aggregate correctness as follows:
+
+- `incorrect` if any rubric requirement is violated.
+- `unknown` if none is violated and one or more requirements are indeterminate,
+  or if the rubric/key is missing or contradictory.
+- `correct` only if every rubric requirement is satisfied.
+
+The selected `insufficient` option is graded by the same key: it is correct
+only when the frozen criteria say the evidence does not support a recommendation
+that meets the user's stated goal. Otherwise it is incorrect or unknown under
+the same rules. Empty explanations, omitted required evidence references, and
+unsupported factual claims affect correctness only when the frozen case rubric
+makes them relevant requirements. Keep the requirement-level work record with
+the evaluation evidence; this procedure does not add fields to the runner's
+attempt schema.
+
+The key must be approved before held-out generation and applied unchanged to
+every condition. Agreement with a user or baseline answer may be reported as a
+separate comparison; it cannot substitute for requirement-level grading.
+
+### Exact JSON and option matching
+
+Use the [approved response contract](alpha-import.md#proposed-structured-model-response):
+one JSON object with exactly `option_id`, `evidence_ids`, and `explanation`.
+Surrounding JSON whitespace is allowed. Missing/extra fields, duplicate keys,
+non-finite numbers, fences, surrounding prose, a non-object root, and wrong
+field types are `malformed`. Do not extract or repair candidate JSON.
+
+`option_id` is a non-empty string matched exactly against the case's option IDs.
+Do not trim its contents, fold case, accept labels, or scan the explanation for
+another choice. A structurally valid unknown ID is `invalid_choice`.
+`evidence_ids` is an array of non-empty strings, with an empty array allowed;
+`explanation` is a string, with an empty string allowed. Empty values permitted
+by the shape remain available for rubric grading rather than invented defaults.
+
+Retain evidence references in supplied order. Unknown IDs do not invalidate a
+readable choice: record each as an unsupported mention with the literal ID in
+`source` and null `evidence_id`. Known IDs resolve to case evidence, but a match
+alone does not establish recorded support, source truth, or causal influence.
+Neither this parser contract nor the response itself establishes tool execution.
+
+### Refusal policy for the bounded first experiment
+
+Teammate A explicitly selected JSON-only handling on November 8, 2026.
+The parser sets `refused=False` for every response in this protocol. A completed
+free-text refusal, including `I refuse to answer`, is `malformed`. Do not use a
+phrase list, substring detector, or guessed intent to override JSON validation.
+No refusal sentinel option or extra response field is introduced.
+
+A structurally valid response selecting a known option is a decision even if
+its explanation contains refusal language. The explanation remains subject to
+the rubric; its wording does not change option matching. A known
+insufficient-evidence option is also a decision, whose correctness depends on
+the case. Unknown option IDs remain `invalid_choice`, including an invented
+refusal ID.
+
+This protocol does not measure refusal separately. A zero refusal count means
+automatic refusal classification is disabled, not that the model never refused.
+Raw output remains available for later, separately declared review; do not
+silently relabel held-out results. The generic refusal outcome remains available
+to a later approved protocol without changing this experiment's rules.
+
+### Runtime termination and precedence
+
+Use reported runtime termination rather than comparing token counts with the
+budget or guessing from punctuation. Preserve the existing outcome precedence:
+`timeout` > `error` > `truncated` > `refusal` > `malformed` > `invalid_choice`
+> `decision`. Refusal is inactive for this protocol. Runtime failures override
+apparently valid JSON, and a timeout remains unresolved with unknown correctness.
+
+For Alpha results, `status: timeout` means timeout and `status: error` means
+infrastructure error. Returned `termination_reason: token_limit` means
+truncated. Returned `termination_reason: unknown` is an error in the existing
+importer, not evidence of a completed decision. Only returned EOS text is sent
+to parsing and then, for decisions, grading. Preserve raw text on every path.
+The local Ollama adapter separately reports output-limit truncation from its
+`done_reason: length`; do not confuse adapter and Alpha envelope field names.
+
+Runtime flags belong to the caller/import path: `parse(raw, case)` receives no
+runtime metadata. These rules do not authorize signature or schema changes.
+The case-specific grading key remains an approval prerequisite. The existing
+fictional fixture is not such an approved key, and this rule does not approve it
+for an experiment.
+
+### Classification examples
+
+Unless a row names a runtime failure, assume returned EOS output. Use a
+synthetic case with known IDs `route-north`, `insufficient`, and `ev-ridership`;
+these examples do not approve that case as an experiment.
+
+| Response or condition | Expected outcome |
+| --- | --- |
+| `{"option_id":"route-north","evidence_ids":["ev-ridership"],"explanation":"Supports North."}` | Decision; grade separately; evidence-ID match alone is not support |
+| Valid shape with `option_id: "insufficient"` | Decision, not refusal |
+| Valid shape with `option_id: "Route-North"`, `" route-north "`, `"Route North"`, or `"refuse"` | `invalid_choice` |
+| `North.`, free-text refusal, fences, prose around an object, or an array root | `malformed` |
+| Missing/extra fields, duplicate keys, wrong types, non-finite numbers, empty option ID or evidence-ID element | `malformed` |
+| `{"option_id":"route-north","evidence_ids":[],"explanation":""}` | Decision; adequacy is rubric-dependent |
+| Valid known choice citing unknown evidence | Decision with unsupported mention; grade separately |
+| `{"option_id":"route-north","evidence_ids":[],"explanation":"I refuse to answer."}` | Decision; explanation retained for grading; `refused=False` |
+| Valid-looking JSON with timeout, infrastructure error, or token-limit termination | `timeout`, `error`, or `truncated`, respectively |
+| Returned Alpha output with unknown termination | `error` |
 
 
 ## Retain evidence for every attempt

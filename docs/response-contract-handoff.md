@@ -1,5 +1,12 @@
 # Response contract and teammate handoff
 
+Subsequent checkpoint: PRs 38 and 39 merged. The lead requested corrective
+review and explicitly selected JSON-only refusal handling. See the
+[PR 39 review and corrections](evaluation-rule-review.md) and
+[operative evaluation rules](evaluation.md#reading-and-grading-model-choices).
+The launch packet and pending-refusal statements below record the earlier
+checkpoint; do not use them to launch a duplicate #25 session.
+
 ## Decision and boundaries
 
 On November 8, 2026, Teammate A approved the strict JSON response contract and
