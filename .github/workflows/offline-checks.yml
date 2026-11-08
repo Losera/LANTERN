@@ -63,8 +63,8 @@ jobs:
             git diff --check "$EVENT_BEFORE" "$CHECK_SHA"
           fi
 
-  alpha-submit:
-    name: Alpha submission helper lane
+  alpha-offline:
+    name: Alpha offline suites
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -75,5 +75,23 @@ jobs:
         with:
           python-version: "3.10"
 
+      # Each suite runs as its own step so a failure names the suite in the
+      # job summary rather than one opaque script. All are offline: they use
+      # fake SSH/SCP/Slurm and synthetic fixtures, and execute no model.
       - name: Test Alpha submission helper offline
         run: python3 tools/test_alpha_submit.py
+
+      - name: Test Alpha response parsing and import integration
+        run: python3 tools/test_alpha_parsing.py
+
+      - name: Test Alpha bundle import
+        run: python3 tools/test_alpha_import.py
+
+      - name: Test Alpha diagnostics
+        run: python3 tools/test_alpha_diagnostic.py
+
+      - name: Test Alpha batch coordinator
+        run: python3 tools/test_alpha_batch.py
+
+      - name: Test Alpha batch executor
+        run: python3 tools/test_alpha_executor.py
