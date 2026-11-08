@@ -67,6 +67,17 @@ class ExecutorTests(unittest.TestCase):
         self.assertEqual(executor.termination([42] * 128), "token_limit")
         self.assertEqual(executor.termination([42]), "unknown")
 
+    def test_pilot_identity_preserves_policy_and_rejects_diagnostics(self):
+        self.batch["purpose"] = "pilot"
+        executor.validate_batch(self.root, self.batch)
+        self.batch["synthetic"] = True
+        with self.assertRaises(ValueError):
+            executor.validate_batch(self.root, self.batch)
+        self.batch["synthetic"] = False
+        self.batch["purpose"] = "diagnostic"
+        with self.assertRaises(ValueError):
+            executor.validate_batch(self.root, self.batch)
+
     def test_oversized_prompt_refuses_without_slicing(self):
         class Tokenizer:
             def apply_chat_template(self, *args, **kwargs):

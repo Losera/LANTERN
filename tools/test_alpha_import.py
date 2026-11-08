@@ -142,14 +142,15 @@ class ImportTests(unittest.TestCase):
         return {str(p.relative_to(self.bundle)): p.read_bytes()
                 for p in self.bundle.rglob("*") if p.is_file()}
 
-    def run_import(self):
-        return importer.import_bundle(self.bundle, cases_dir=self.cases, attempts_path=self.destination)
+    def run_import(self, *, pilot=False):
+        return importer.import_bundle(self.bundle, cases_dir=self.cases,
+                                      attempts_path=self.destination, pilot=pilot)
 
-    def refuse(self, message):
+    def refuse(self, message, *, pilot=False):
         before = self.snapshot()
         previous = self.destination.read_bytes() if self.destination.exists() else None
         with self.assertRaisesRegex(importer.ImportError, message):
-            self.run_import()
+            self.run_import(pilot=pilot)
         self.assertEqual(before, self.snapshot())
         self.assertEqual(previous, self.destination.read_bytes() if self.destination.exists() else None)
 
@@ -290,6 +291,57 @@ class ImportTests(unittest.TestCase):
         self.batch["purpose"] = "diagnostic"
         self.write()
         self.refuse("only experimental")
+
+    def test_pilot_requires_explicit_opt_in_and_never_grades(self):
+        self.batch["purpose"] = "pilot"
+        self.write()
+        self.refuse("--pilot")
+        self.grader.side_effect = AssertionError("Pilot must not grade")
+        before = self.snapshot()
+        report = self.run_import(pilot=True)
+        self.assertEqual(report.appended, 8)
+        records = list(read_attempts(self.destination))
+        self.assertTrue(all(r["correctness"] == "unknown" for r in records))
+        self.assertEqual(records[0]["raw_output"], STRUCTURED_CHOICE)
+        self.assertEqual(before, self.snapshot())
+        original = self.destination.read_bytes()
+        report = self.run_import(pilot=True)
+        self.assertEqual((report.appended, report.skipped), (0, 8))
+        self.assertEqual(self.destination.read_bytes(), original)
+        self.grader.assert_not_called()
+
+    def test_pilot_opt_in_does_not_bypass_experimental_or_diagnostic_gates(self):
+        self.refuse("requires a pilot", pilot=True)
+        self.batch["purpose"] = "diagnostic"
+        self.write()
+        self.refuse("requires a pilot", pilot=True)
+
+    def test_pilot_rejects_other_run_and_runtime_before_append(self):
+        self.batch["purpose"] = "pilot"
+        self.write()
+        self.run_import(pilot=True)
+        self.batch["run_id"] = "different-pilot"
+        self.write()
+        self.refuse("only this ungraded run", pilot=True)
+        self.batch["identity"]["harness_version"] = "different-runtime"
+        for result in self.results:
+            result["provenance"]["harness_version"] = "different-runtime"
+        self.write()
+        self.refuse("incompatible model/runtime", pilot=True)
+
+    def test_pilot_partial_append_resumes_without_duplicates(self):
+        self.batch["purpose"] = "pilot"
+        self.write()
+        original_append = importer.recording.append_many
+        def interrupted(path, records):
+            original_append(path, records[:1])
+            raise OSError("offline interruption after first append")
+        with patch.object(importer.recording, "append_many", side_effect=interrupted):
+            with self.assertRaisesRegex(importer.ImportError, "offline interruption"):
+                self.run_import(pilot=True)
+        report = self.run_import(pilot=True)
+        self.assertEqual((report.appended, report.skipped), (7, 1))
+        self.assertEqual(len(list(read_attempts(self.destination))), 8)
 
     def test_incompatible_existing_datasets(self):
         self.run_import()

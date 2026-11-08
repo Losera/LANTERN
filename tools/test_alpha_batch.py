@@ -7,8 +7,11 @@ Transport, journaling, importer, counting and export execute their real code.
 """
 
 import json
+from contextlib import redirect_stdout
+import io
 import os
 from pathlib import Path
+import shutil
 import sys
 import unittest
 from unittest.mock import patch
@@ -332,6 +335,156 @@ class BatchTests(unittest.TestCase):
         self.assertIsNone(batch.accounting("QUEUE\nACCOUNTING\n12345|COMPLETED|0:0\n12345|FAILED|1:0\n", "12345"))
         with self.assertRaisesRegex(batch.BatchError, "nonzero exit"):
             batch.accounting("QUEUE\nACCOUNTING\n12345|COMPLETED|1:0\n", "12345")
+
+
+class PilotBatchTests(unittest.TestCase):
+    """Real fictional case, renderer, parser and importer; fake transport only."""
+
+    def setUp(self):
+        transport.AlphaSubmitTests.setUp(self)
+        self.run_dir = self.local / "pilot-run"
+        self.cases = self.local / "cases"
+        self.cases.mkdir()
+        shutil.copyfile(ROOT / "fixtures/cases/example-campus-transport.json", self.cases / "case.json")
+        self.approval = self.local / "approval.md"
+        self.approval.write_text("Offline fixture: approve a fictional ungraded Alpha pilot.\n")
+        self.grader = patch.object(batch.parsing, "grade", side_effect=AssertionError("Pilot must not grade"))
+        self.grade = self.grader.start()
+        self.addCleanup(self.grader.stop)
+        patcher = patch.dict(os.environ, self.env)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def prepare(self):
+        return batch.prepare(cases_dir=self.cases, grading_key=None, approval=self.approval,
+                             out=self.run_dir, host="tester@alpha.invalid", pilot=True)
+
+    submit = BatchTests.submit
+
+    def remote_results(self, *, not_started=0):
+        state = batch.load_state(self.run_dir)
+        remote = self.remote / "lantern/runs" / state["run_id"]
+        envelope = batch.read_json(remote / "batch.json")
+        choice = json.dumps(dict(option_id="route-west", evidence_ids=["ev-ridership"],
+                                 explanation="Offline fixture explanation"))
+        plan = [("returned", "eos", choice), ("returned", "eos", "not JSON"),
+                ("returned", "token_limit", choice), ("timeout", "unknown", None),
+                ("error", "unknown", "partial transport output"),
+                ("returned", "unknown", choice)]
+        rows = []
+        for index, attempt in enumerate(envelope["attempts"]):
+            status, termination, raw = plan[index] if index < len(plan) else plan[0]
+            if index >= 20 - not_started:
+                status, termination, raw = "not_started", "unknown", None
+            rows.append(dict(attempt_id=attempt["attempt_id"], prompt_sha256=attempt["prompt_sha256"],
+                status=status, termination_reason=termination, raw_output=raw,
+                provenance=envelope["identity"], errors=[] if status == "returned" else ["Offline fixture failure"]))
+        (remote / "results.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+        batch.atomic_json(remote / "execution-summary.json", dict(elapsed_seconds=100.0,
+            attempted=20 - not_started, includes_preflight_and_model_loading=True))
+        os.environ.update(QUEUE="", ACCOUNTING="12345|COMPLETED|0:0")
+        return remote
+
+    def test_real_pilot_freeze_matches_local_prompts_without_grading(self):
+        self.prepare()
+        envelope = batch.read_json(self.run_dir / "inputs/batch.json")
+        self.assertEqual(envelope["purpose"], "pilot")
+        self.assertFalse(envelope["synthetic"])
+        self.assertFalse((self.run_dir / "inputs/grading-key.md").exists())
+        expected = json.loads((ROOT / "evidence/local/pilot-2026-11-08/manifest.json").read_text())
+        self.assertEqual([a["prompt_sha256"] for a in envelope["attempts"]],
+                         [a["prompt_sha256"] for a in expected["schedule"]])
+        self.grade.assert_not_called()
+
+    def test_default_experiment_still_refuses_fictional_case_and_missing_key(self):
+        with self.assertRaisesRegex(batch.BatchError, "approved case"):
+            batch.prepare(cases_dir=self.cases, grading_key=None, approval=self.approval,
+                          out=self.run_dir, host="tester@alpha.invalid")
+        self.assertFalse(self.run_dir.exists())
+        case_file = self.cases / "case.json"
+        case = json.loads(case_file.read_text())
+        case["status"] = "APPROVED_TEST_FIXTURE"
+        case_file.write_text(json.dumps(case))
+        with self.assertRaisesRegex(batch.BatchError, "grading key"):
+            batch.prepare(cases_dir=self.cases, grading_key=None, approval=self.approval,
+                          out=self.run_dir, host="tester@alpha.invalid")
+        self.assertFalse(self.run_dir.exists())
+
+    def test_pilot_requires_approval_and_refuses_key(self):
+        self.approval.write_text("")
+        with self.assertRaisesRegex(batch.BatchError, "approval"):
+            self.prepare()
+        self.assertFalse(self.run_dir.exists())
+        with self.assertRaisesRegex(batch.BatchError, "does not accept"):
+            batch.prepare(cases_dir=self.cases, grading_key=self.approval, approval=self.approval,
+                          out=self.run_dir, host="tester@alpha.invalid", pilot=True)
+
+    def test_cli_pilot_prepares_without_a_key(self):
+        with redirect_stdout(io.StringIO()):
+            status = batch.main(["prepare", "--pilot", "--cases", str(self.cases),
+                "--approval", str(self.approval), "--out", str(self.run_dir),
+                "--host", "tester@alpha.invalid"])
+        self.assertEqual(status, 0)
+        self.assertEqual(batch.read_json(self.run_dir / "inputs/batch.json")["purpose"], "pilot")
+        self.grade.assert_not_called()
+
+    def test_pilot_still_requires_parser_and_experiment_still_requires_grader(self):
+        with patch.object(batch.parsing, "parse", side_effect=NotImplementedError("not ready")):
+            with self.assertRaisesRegex(batch.BatchError, "not ready"):
+                self.prepare()
+        self.assertFalse(self.run_dir.exists())
+        case_file = self.cases / "case.json"
+        case = json.loads(case_file.read_text())
+        case["status"] = "APPROVED_TEST_FIXTURE"
+        case_file.write_text(json.dumps(case))
+        with patch.object(batch.parsing, "grade", side_effect=NotImplementedError("missing key contract")):
+            with self.assertRaisesRegex(batch.BatchError, "not ready"):
+                batch.prepare(cases_dir=self.cases, grading_key=self.approval, approval=self.approval,
+                              out=self.run_dir, host="tester@alpha.invalid")
+        self.assertFalse(self.run_dir.exists())
+
+    def test_changed_pilot_purpose_refuses_before_transport(self):
+        self.prepare()
+        path = self.run_dir / "inputs/batch.json"
+        envelope = batch.read_json(path)
+        envelope["purpose"] = "experimental"
+        batch.atomic_json(path, envelope)
+        with self.assertRaisesRegex(batch.BatchError, "Frozen input changed"):
+            self.submit()
+        self.assertEqual(batch.load_state(self.run_dir)["operations"], [])
+
+    def test_full_pilot_failures_export_and_repeat_resume(self):
+        self.prepare()
+        self.submit()
+        self.remote_results()
+        summary = batch.resume(self.run_dir)
+        self.assertEqual(summary["purpose"], "pilot")
+        self.assertEqual(summary["attempted"], 20)
+        self.assertEqual(summary["decisions"], 15)
+        self.assertTrue(summary["gate_passed"])
+        destination = self.run_dir / "dataset/attempts.jsonl"
+        original = destination.read_bytes()
+        records = list(read_attempts(destination))
+        self.assertEqual([r["outcome"] for r in records[:6]],
+                         ["decision", "malformed", "truncated", "timeout", "error", "error"])
+        self.assertTrue(all(r["correctness"] == "unknown" and not r["synthetic"] for r in records))
+        self.assertEqual(records[4]["raw_output"], "partial transport output")
+        export = batch.read_json(self.run_dir / "dataset/export.json")
+        self.assertIn("fictional-case pilot", export["label"])
+        self.assertFalse(export["all_records_synthetic"])
+        self.assertEqual(export["attempts"], records)
+        batch.resume(self.run_dir)
+        self.assertEqual(destination.read_bytes(), original)
+        self.grade.assert_not_called()
+
+    def test_pilot_unstarted_attempts_do_not_pass_gate(self):
+        self.prepare()
+        self.submit()
+        self.remote_results(not_started=1)
+        summary = batch.resume(self.run_dir)
+        self.assertEqual(summary["attempted"], 19)
+        self.assertEqual(len(summary["not_started"]), 1)
+        self.assertFalse(summary["gate_passed"])
 
 
 if __name__ == "__main__":

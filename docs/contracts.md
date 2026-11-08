@@ -43,7 +43,12 @@ there is no automatic journal migration. Preserve the directory and use the
 matching reviewed implementation to recover an older run.
 
 The [batch operator guide](alpha-batch.md) defines `prepare`, `submit`, and
-`resume`. The existing batch/result envelopes and attempt records are unchanged.
+`resume`. The batch/result field sets and attempt records are unchanged.
+The lead additionally approved `prepare --pilot` and `purpose: "pilot"` on
+November 8, 2026. This explicit mode permits a fictional case, requires written
+pilot approval, and keeps correctness unknown without calling grading.
+Standalone import requires `--pilot` to accept that purpose. Default
+experimental preparation and import retain their case/key/grading gates.
 The standalone GPU executor emits those envelopes; it does not implement an
 Alpha `ModelAdapter` or change the local Ollama adapter. Removing the new
 coordinator leaves existing helper/import commands usable. Preserve completed

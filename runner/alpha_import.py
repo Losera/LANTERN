@@ -204,7 +204,8 @@ def _record(attempt: dict, result: dict, case: Case, batch: dict) -> recording.A
             if classify(signal) is Outcome.DECISION:
                 if decision.option_id not in {option.id for option in case.options}:
                     _fail(f"{attempt['attempt_id']}: parser returned an option outside the case")
-                correctness = parsing.grade(decision, case)
+                if batch["purpose"] != "pilot":
+                    correctness = parsing.grade(decision, case)
         except NotImplementedError as exc:
             raise ImportError(f"{attempt['attempt_id']}: approved parser/grader unavailable: {exc}") from exc
     elif status == "returned" and termination == "unknown":
@@ -223,7 +224,7 @@ def _record(attempt: dict, result: dict, case: Case, batch: dict) -> recording.A
 
 
 def import_bundle(bundle_dir: str | Path, *, cases_dir: str | Path,
-                  attempts_path: str | Path) -> ImportReport:
+                  attempts_path: str | Path, pilot: bool = False) -> ImportReport:
     """Validate everything, reconcile existing records, then append new ones.
 
     Requires exclusive human-coordinated ownership of the dataset and stable
@@ -231,14 +232,14 @@ def import_bundle(bundle_dir: str | Path, *, cases_dir: str | Path,
     complete matching records, but refuses a truncated destination line.
     """
     try:
-        return _import_bundle(Path(bundle_dir), Path(cases_dir), Path(attempts_path))
+        return _import_bundle(Path(bundle_dir), Path(cases_dir), Path(attempts_path), pilot=pilot)
     except (OSError, UnicodeError, ValueError) as exc:
         if isinstance(exc, ImportError):
             raise
         raise ImportError(str(exc)) from exc
 
 
-def _import_bundle(bundle: Path, cases_dir: Path, destination: Path) -> ImportReport:
+def _import_bundle(bundle: Path, cases_dir: Path, destination: Path, *, pilot: bool = False) -> ImportReport:
     root = bundle.resolve(strict=True)
     if not root.is_dir():
         _fail(f"{root}: bundle must be a directory")
@@ -253,8 +254,9 @@ def _import_bundle(bundle: Path, cases_dir: Path, destination: Path) -> ImportRe
     }, "batch.json")
     if batch["format"] != FORMAT or type(batch["schema_version"]) is not int or batch["schema_version"] != 0:
         _fail("batch.json: unsupported format/schema_version")
-    if batch["purpose"] != "experimental":
-        _fail("batch.json: only experimental bundles can enter an attempt dataset")
+    if batch["purpose"] != ("pilot" if pilot else "experimental"):
+        _fail("batch.json: only experimental bundles are accepted by default; "
+              "--pilot explicitly requires a pilot bundle")
     if type(batch["synthetic"]) is not bool:
         _fail("batch.json.synthetic: expected a boolean")
     _text(batch["run_id"], "batch.json.run_id")
@@ -341,6 +343,9 @@ def _import_bundle(bundle: Path, cases_dir: Path, destination: Path) -> ImportRe
         for number, line in enumerate(raw_dataset.splitlines(), 1):
             row = _existing_row(_json(line, f"dataset:{number}"), batch["identity"],
                                 batch["synthetic"], f"dataset:{number}")
+            if pilot and (row["run_id"] != batch["run_id"]
+                          or row["correctness"] != Correctness.UNKNOWN.value):
+                _fail("pilot dataset must contain only this ungraded run")
             key = (_text(row.get("run_id"), "dataset.run_id"), _text(row.get("attempt_id"), "dataset.attempt_id"))
             if key in existing:
                 _fail(f"dataset already contains duplicate identity {key}")
@@ -372,9 +377,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--bundle", required=True)
     parser.add_argument("--cases", required=True)
     parser.add_argument("--attempts", required=True)
+    parser.add_argument("--pilot", action="store_true", help="explicitly import an ungraded pilot bundle")
     args = parser.parse_args(argv)
     try:
-        report = import_bundle(args.bundle, cases_dir=args.cases, attempts_path=args.attempts)
+        report = import_bundle(args.bundle, cases_dir=args.cases, attempts_path=args.attempts,
+                               pilot=args.pilot)
     except ImportError as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         return 1
