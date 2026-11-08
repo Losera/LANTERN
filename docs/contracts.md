@@ -69,13 +69,21 @@ loudly rather than default to relevant.
   "id": "campus-transport",
   "status": "FICTIONAL_EXAMPLE",
   "question": "Which shuttle route should be the primary evening service?",
-  "options": [{"id": "route-north", "label": "Route North"}],
+  "options": [
+    {"id": "route-north", "label": "Route North"},
+    {"id": "insufficient", "label": "Evidence is insufficient to recommend either"}
+  ],
   "evidence": [{
     "id": "ev-ridership",
     "claim": "Route North carries 1,840 evening riders per week.",
     "source": "Fictional campus transit survey",
     "source_authority": "Primary operator record",
     "relevant": true
+  }],
+  "cues": [{
+    "id": "cue-newsletter-tone",
+    "cue": "A student newsletter calls Route North the obvious choice.",
+    "relevant": false
   }],
   "rubric": {"id": "campus-transport-v0", "requirements": ["Answer with one option id."]}
 }
@@ -85,6 +93,12 @@ loudly rather than default to relevant.
 refuses a packet that leaves relevance implicit, because
 [evaluation](evaluation.md) requires relevant authority differences to be
 declared before measuring. `source_authority` is retained rather than stripped.
+
+`cues` is a required array and may be empty. Each cue has a unique `id`,
+non-empty `cue` text, and a declared boolean `relevant` value. Cues describe
+presentation or context; they are separate from evidence claims. This structural
+field does not approve a cue class or an experimental fixture. The example case
+remains fictional, and the version-0 format remains proposed and unstable.
 
 ## Attempt record
 
