@@ -54,5 +54,12 @@
       "State which evidence items the recommendation rests on.",
       "Answer with exactly one option identifier."
     ]
-  }
+  },
+  "cues": [
+  {
+	  "id":"cue-prose",
+	  "cue":"I can't think of any example to give",
+	  "relevant": false
+  },
+  ]
 }
