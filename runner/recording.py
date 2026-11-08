@@ -20,16 +20,20 @@ from __future__ import annotations
 from dataclasses import dataclass, field, fields
 import json
 from pathlib import Path
-from typing import Iterator
+from typing import TYPE_CHECKING, Iterator
 
 from runner import SCHEMA_VERSION
 from runner.conditions import Arm
-from runner.outcomes import Correctness, Outcome
+from runner.outcomes import Correctness, Outcome, classify
 from runner.unknown import UNKNOWN, Unknown, encode, is_known
+
+if TYPE_CHECKING:
+    from runner.parsing import Decision, ParseSignal
 
 __all__ = [
     "UNKNOWN", "Unknown", "encode", "is_known",
     "AttemptRecord", "RecordError", "append", "append_many", "read_attempts",
+    "make_attempt_record",
 ]
 
 
@@ -129,6 +133,71 @@ class AttemptRecord:
             "provenance": provenance_json,
             "unknown": list(self.unknown_fields()),
         }
+
+
+def make_attempt_record(
+    *,
+    run_id: str,
+    case_id: str,
+    condition_id: str,
+    arm: Arm,
+    attempt_id: str,
+    operation_id: str,
+    signal: ParseSignal,
+    provenance: object,
+    raw_output: str | Unknown,
+    prompt_sha256: str | Unknown,
+    decision: Decision | None = None,
+    correctness: Correctness = Correctness.UNKNOWN,
+    errors: tuple[str, ...] = (),
+    synthetic: bool = False,
+) -> AttemptRecord:
+    """Build the shared record shape from one parse result or failure signal.
+
+    This is the common conversion used by local execution and Alpha import:
+    outcome classification, extracted choice, mentions, explanation, and
+    explicit unknowns are kept consistent at the recording boundary.
+    """
+    outcome = classify(signal)
+    if decision is None:
+        option_id = UNKNOWN
+        mentions = ()
+        explanation = UNKNOWN
+    else:
+        option_id = decision.option_id
+        mentions = tuple(
+            {
+                "source": mention.source,
+                "supported": mention.supported,
+                "evidence_id": mention.evidence_id,
+            }
+            for mention in decision.mentions
+        )
+        explanation = (
+            decision.received_explanation
+            if decision.received_explanation is not None else UNKNOWN
+        )
+    if outcome is not Outcome.DECISION:
+        correctness = Correctness.UNKNOWN
+    return AttemptRecord(
+        run_id=run_id,
+        case_id=case_id,
+        condition_id=condition_id,
+        arm=arm,
+        attempt_id=attempt_id,
+        operation_id=operation_id,
+        outcome=outcome,
+        provenance=provenance,
+        raw_output=raw_output,
+        prompt_sha256=prompt_sha256,
+        option_id=option_id,
+        correctness=correctness,
+        parse_signal=signal.as_dict(),
+        mentions=mentions,
+        received_explanation=explanation,
+        errors=errors,
+        synthetic=synthetic,
+    )
 
 
 def _enum_value(value: object) -> object:

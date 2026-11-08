@@ -1,28 +1,30 @@
-"""Command line entry point: ``python3 -m runner.cli <command>``.
-
-Commands cover what can honestly be done today -- validate a case, expand its
-conditions, build a trace document, summarise records, write the frontend
-export, and generate the clearly-labelled synthetic fixture. There is
-deliberately no ``run`` command: running the experiment needs the model
-adapter, prompt renderer, and parser seams, and a command that appeared to run
-but silently produced nothing would be worse than its absence.
-"""
+"""Command line entry point: ``python3 -m runner.cli <command>``."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 import sys
+import uuid
 
 from runner import LANE, SCHEMA_VERSION
 from runner.analysis import summarize
 from runner.cases import Case, CaseError, load_case, load_cases
 from runner.conditions import Arm, Condition, expand, mark_confounded
 from runner.export import build_export, write_export
-from runner.models import ExecutionSite, Provenance
+from runner.models import (
+    AdapterExecutionError, ExecutionSite, PromptPayload, UnapprovedAdapter,
+    Provenance,
+)
 from runner.outcomes import Correctness, Outcome
-from runner.recording import UNKNOWN, AttemptRecord, append_many, read_attempts
+from runner.prompts import digest, render
+from runner import parsing
+from runner.recording import (
+    UNKNOWN, Unknown, AttemptRecord, append, append_many, make_attempt_record,
+    read_attempts,
+)
 from runner.trace import IdSpace, ORACLE_CONFORMANCE, document, write_document
 from runner import trace as trace_mod
 
@@ -30,6 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CASES = ROOT / "fixtures" / "cases"
 DEFAULT_ATTEMPTS = ROOT / "fixtures" / "attempts" / "example.jsonl"
 DEFAULT_EXPORT = ROOT / "frontend" / "data" / "export.json"
+DEFAULT_RUN_ATTEMPTS = ROOT / "data" / "attempts" / "local.jsonl"
 SYNTHETIC_LABEL = "SYNTHETIC EXAMPLE — not experiment results"
 
 
@@ -166,6 +169,214 @@ def cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_run(args: argparse.Namespace) -> int:
+    """Run one case across its matched conditions, recording each attempt."""
+    if not math.isfinite(args.timeout_seconds) or args.timeout_seconds <= 0:
+        print("FAIL: --timeout-seconds must be a finite positive number", file=sys.stderr)
+        return 1
+    if args.run_id is not None and not args.run_id.strip():
+        print("FAIL: --run-id must not be empty", file=sys.stderr)
+        return 1
+    if not args.label.strip():
+        print("FAIL: --label must not be empty", file=sys.stderr)
+        return 1
+    try:
+        case = load_case(args.case)
+        conditions = expand(case.id, reruns=args.reruns)
+    except (CaseError, OSError, ValueError) as exc:
+        print(f"FAIL: {exc}", file=sys.stderr)
+        return 1
+
+    run_id = args.run_id or uuid.uuid4().hex
+    print(f"RUN_ID={run_id}", file=sys.stderr, flush=True)
+    attempts_path = Path(args.attempts)
+    case_path = Path(args.case)
+    export_path = Path(args.export)
+    wrapper_path = export_path.with_suffix(".js")
+    try:
+        case_target = case_path.resolve()
+        attempts_target = attempts_path.resolve()
+        export_targets = {export_path.resolve(), wrapper_path.resolve()}
+    except OSError as exc:
+        print(f"FAIL: cannot resolve input/output paths: {exc}", file=sys.stderr)
+        return 1
+    if (attempts_target == case_target
+            or attempts_target in export_targets
+            or case_target in export_targets
+            or len(export_targets) != 2):
+        print(
+            "FAIL: case, attempts, export JSON, and export wrapper must use "
+            "different paths",
+            file=sys.stderr,
+        )
+        return 1
+    try:
+        previous = list(read_attempts(attempts_path)) if attempts_path.exists() else []
+    except (OSError, ValueError) as exc:
+        print(f"FAIL: cannot resume from {attempts_path}: {exc}", file=sys.stderr)
+        return 1
+
+    completed: dict[str, dict[str, object]] = {}
+    for row in previous:
+        if row.get("run_id") != run_id:
+            continue
+        attempt_id = row.get("attempt_id")
+        if not isinstance(attempt_id, str) or attempt_id in completed:
+            print(f"FAIL: duplicate or invalid attempt id in run {run_id}", file=sys.stderr)
+            return 1
+        completed[attempt_id] = row
+
+    expected_ids = {condition.id for condition in conditions}
+    unexpected_ids = set(completed) - expected_ids
+    if unexpected_ids:
+        print(
+            "FAIL: existing run has attempts outside this case/rerun plan: "
+            + ", ".join(sorted(unexpected_ids)),
+            file=sys.stderr,
+        )
+        return 1
+
+    adapter = UnapprovedAdapter(timeout_seconds=args.timeout_seconds)
+    counts: dict[str, int] = {}
+    appended = 0
+    skipped = 0
+    for condition in conditions:
+        attempt_id = condition.id
+        prompt = None
+        render_error = None
+        try:
+            prompt = render(case, condition)
+            if (not isinstance(prompt, PromptPayload)
+                    or not isinstance(prompt.text, str)
+                    or not isinstance(prompt.sha256, str)):
+                raise TypeError("renderer returned an invalid PromptPayload")
+            if digest(prompt.text) != prompt.sha256:
+                raise ValueError("renderer prompt digest does not match its text")
+        except Exception as exc:
+            prompt = None
+            render_error = f"prompt rendering failed: {type(exc).__name__}: {exc}"
+
+        prompt_hash = prompt.sha256 if prompt is not None else UNKNOWN
+        prior = completed.get(attempt_id)
+        if prior is not None:
+            stored_hash = prior.get("prompt_sha256")
+            expected_hash = None if isinstance(prompt_hash, type(UNKNOWN)) else prompt_hash
+            if (prior.get("condition_id") != condition.id
+                    or prior.get("case_id") != case.id
+                    or prior.get("arm") != condition.arm.value
+                    or stored_hash != expected_hash):
+                print(f"FAIL: existing attempt {attempt_id} conflicts with this run", file=sys.stderr)
+                return 1
+            skipped += 1
+            counts[str(prior.get("outcome", "unknown"))] = (
+                counts.get(str(prior.get("outcome", "unknown")), 0) + 1
+            )
+            continue
+
+        raw_output: str | Unknown = UNKNOWN
+        provenance: object = Provenance(execution_site=ExecutionSite.UNKNOWN)
+        decision = None
+        errors: tuple[str, ...] = ()
+        if render_error is not None:
+            signal = parsing.ParseSignal(transport_error=True)
+            errors = (render_error,)
+        else:
+            try:
+                result = adapter.generate(prompt)
+                if not isinstance(result.text, str):
+                    raise TypeError("model adapter returned non-string raw output")
+                raw_output = result.text
+                provenance = result.provenance
+                if result.truncated_by_limit:
+                    signal = parsing.ParseSignal(truncated=True)
+                else:
+                    try:
+                        decision = parsing.parse(result.text, case)
+                        signal = decision.signal
+                    except Exception as exc:
+                        signal = parsing.ParseSignal(transport_error=True)
+                        errors = (f"parsing failed: {type(exc).__name__}: {exc}",)
+            except AdapterExecutionError as exc:
+                raw_output = exc.raw_output if isinstance(exc.raw_output, str) else UNKNOWN
+                provenance = exc.provenance
+                signal = parsing.ParseSignal(
+                    timed_out=exc.timed_out,
+                    transport_error=not exc.timed_out,
+                )
+                errors = (str(exc) or type(exc).__name__,)
+            except Exception as exc:
+                signal = parsing.ParseSignal(transport_error=True)
+                errors = (f"model execution failed: {type(exc).__name__}: {exc}",)
+
+        record_fields = {
+            "run_id": run_id,
+            "case_id": case.id,
+            "condition_id": condition.id,
+            "arm": condition.arm,
+            "attempt_id": attempt_id,
+            "operation_id": condition.id,
+            "signal": signal,
+            "provenance": provenance,
+            "raw_output": raw_output,
+            "prompt_sha256": prompt_hash,
+            "decision": decision,
+            "correctness": Correctness.UNKNOWN,
+            "errors": errors,
+        }
+        try:
+            record = make_attempt_record(**record_fields)
+        except Exception as exc:
+            record_fields.update({
+                "signal": parsing.ParseSignal(transport_error=True),
+                "decision": None,
+                "errors": errors + (
+                    f"record construction failed: {type(exc).__name__}: {exc}",
+                ),
+            })
+            record = make_attempt_record(**record_fields)
+        try:
+            append(attempts_path, record)
+        except (OSError, ValueError) as exc:
+            print(f"FAIL: could not append {attempt_id}: {exc}", file=sys.stderr)
+            return 1
+        appended += 1
+        counts[record.outcome.value] = counts.get(record.outcome.value, 0) + 1
+
+    try:
+        run_records = [
+            row for row in read_attempts(attempts_path)
+            if row.get("run_id") == run_id and row.get("case_id") == case.id
+        ]
+        analysis = summarize(run_records, conditions)
+        export_document = build_export(
+            cases=(case,),
+            conditions=conditions,
+            records=run_records,
+            analysis=analysis,
+            label=args.label,
+        )
+        export_path, wrapper_path = write_export(args.export, export_document)
+    except (OSError, ValueError) as exc:
+        print(f"FAIL: attempts were recorded, but analysis/export failed: {exc}", file=sys.stderr)
+        return 1
+
+    _echo({
+        "result": "complete",
+        "run_id": run_id,
+        "case_id": case.id,
+        "attempts_path": str(attempts_path),
+        "conditions": len(conditions),
+        "appended": appended,
+        "resumed": skipped,
+        "outcomes": counts,
+        "correctness": "unknown",
+        "effect": analysis.effect.value,
+        "export": str(export_path),
+        "export_wrapper": str(wrapper_path),
+    })
+    return 0
+
+
 def cmd_synthesize(args: argparse.Namespace) -> int:
     """Write the synthetic attempt fixture used by the checker and the page.
 
@@ -241,9 +452,8 @@ def cmd_synthesize(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python3 -m runner.cli",
-        description="LANTERN runner skeleton. No model is executed by any "
-                    "command: prompt rendering, model adapters, and parsing "
-                    "are unapproved seams.",
+        description="LANTERN runner commands, including a resumable local "
+                    "Ollama run for one case.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -280,6 +490,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", default=str(DEFAULT_ATTEMPTS))
     p.add_argument("--force", action="store_true")
     p.set_defaults(func=cmd_synthesize)
+
+    p = sub.add_parser("run", help="run a case with the local Ollama model")
+    p.add_argument("--case", required=True, help="path to one case JSON file")
+    p.add_argument("--attempts", default=str(DEFAULT_RUN_ATTEMPTS))
+    p.add_argument("--reruns", type=int, default=1)
+    p.add_argument(
+        "--run-id",
+        help="stable id for resuming this run; reuse the same value after interruption",
+    )
+    p.add_argument("--timeout-seconds", type=float, default=300.0)
+    p.add_argument("--export", default=str(DEFAULT_EXPORT))
+    p.add_argument(
+        "--label",
+        default="LOCAL OLLAMA RUN — correctness unknown",
+        help="label for the generated evidence export",
+    )
+    p.set_defaults(func=cmd_run)
 
     return parser
 

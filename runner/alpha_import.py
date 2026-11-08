@@ -209,20 +209,16 @@ def _record(attempt: dict, result: dict, case: Case, batch: dict) -> recording.A
             raise ImportError(f"{attempt['attempt_id']}: approved parser/grader unavailable: {exc}") from exc
     elif status == "returned" and termination == "unknown":
         errors += ("termination unknown; output cannot establish a completed decision",)
-    outcome = classify(signal)
-    return recording.AttemptRecord(
+    return recording.make_attempt_record(
         run_id=batch["run_id"], case_id=attempt["case_id"],
         condition_id=attempt["condition_id"], arm=Arm(attempt["arm"]),
         attempt_id=attempt["attempt_id"], operation_id=attempt["operation_id"],
-        outcome=outcome, provenance=_provenance(result["provenance"], batch["identity"], attempt["attempt_id"]),
+        signal=signal,
+        provenance=_provenance(result["provenance"], batch["identity"], attempt["attempt_id"]),
         raw_output=result["raw_output"] if result["raw_output"] is not None else UNKNOWN,
         prompt_sha256=attempt["prompt_sha256"],
-        option_id=decision.option_id if decision is not None else UNKNOWN,
-        correctness=correctness, parse_signal=signal.as_dict(),
-        mentions=tuple(asdict(mention) for mention in decision.mentions) if decision else (),
-        received_explanation=(decision.received_explanation
-                              if decision and decision.received_explanation is not None else UNKNOWN),
-        errors=errors, synthetic=batch["synthetic"],
+        decision=decision, correctness=correctness, errors=errors,
+        synthetic=batch["synthetic"],
     )
 
 
