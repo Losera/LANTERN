@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING
 
 from runner.outcomes import Correctness
 
+import json
+
 if TYPE_CHECKING:
     from runner.cases import Case
 
@@ -37,6 +39,7 @@ class ParseSignal:
     refused: bool = False
     decodable: bool = False
     choice_in_rubric: bool = False
+    choice_not_in_rubric: bool = False
 
     def as_dict(self) -> dict[str, bool]:
         return {
@@ -46,6 +49,7 @@ class ParseSignal:
             "refused": self.refused,
             "decodable": self.decodable,
             "choice_in_rubric": self.choice_in_rubric,
+            "choice_not_in_rubric": self.choice_not_in_rubric,
         }
 
 
@@ -76,19 +80,93 @@ class Decision:
     received_explanation: str | None = None
 
 
-def parse(raw: str, case: Case) -> Decision:
-    """SEAM: read one raw output against a case's options and rubric.
-
-    Raises:
-        NotImplementedError: always. The rubric, the option vocabulary, and the
-            refusal and truncation criteria are unapproved; see
-            docs/project.md "Decisions still required".
-    """
-    raise NotImplementedError(
-        "parsing is a seam: the rubric, option vocabulary, and refusal and "
-        "truncation criteria are not agreed. See docs/project.md and "
-        "docs/contracts.md before implementing."
+def parse(output_id: str, case: Case) -> Decision:
+    signal: ParseSignal | None = None
+    output = {}
+    diagnostic = {}
+    reasoning = {}
+    filepath = "../../evidence/alpha/job-" + output_id + "/"
+    #only valid if runner script is in runner
+    try: #this is for the output
+        with open((filepath + output_id + ".json"), 'r', encoding='utf-8') as file:
+            output = json.load(file)
+    except FileNotFoundError:
+        print(" PARSER COULD NOT FIND JSON FILE ")
+        signal = ParseSignal.transport_error
+        #really gotta return an invalid Decision
+        return None
+        
+    try: #this is for the diagnostic
+        with open((filepath + "diagnostic-result.json"), 'r', encoding='utf-8') as file:
+            diagnostic = json.load(file)
+    except FileNotFoundError:
+        print(" PARSER COULD NOT FIND DIAGNOSTIC FILE ")
+        signal = ParseSignal.transport_error
+        #return invalid Decision
+        return None
+        
+    try: #this is for inference-result
+        with open((filepath + "inference-result.json"), 'r', encoding='utf-8') as file:
+            filepath = json.load(file)
+    except FileNotFoundError:
+        print(" PARSER COULD NOT FIND INFERENCE RESULT FILE ")
+        signal = ParseSignal.transport_error
+        #return invalid Decision
+        return None
+        
+    status = diagnostic.get("status")
+    diagnostic = None #deallocate cuz oh my god this thing is huge
+    if status == ParseSignal.timed_out.value:
+        signal = ParseSignal.timed_out
+        return None
+    elif status == ParseSignal.transport_error.value:
+        signal = ParseSignal.transport_error
+        return None
+    elif status == ParseSignal.truncated.value:
+        signal = ParseSignal.truncated
+        return None
+    #if none of these pass, then signal is good!
+    
+    
+    attempts = output.get("attempts")
+    if len(attempts) == 0:
+        signal = ParseSignal.transport_error
+        #return invalid decision
+        return None
+        
+    #for now use first attempt
+    #mostSignificantAttempt
+    msAttempt = attempts[0]
+    option_id = msAttempt.get("operation_id")
+    case_id = msAttempt.get("case_id")
+    if case_id != case.id:
+        print(" MALFORMED CASE ID, DOESN'T MATCH ")
+        signal = ParseSignal.transport_error
+        #really gotta return an invalid Decision
+        return None
+    options = case.options
+    found_case = False
+    for option in options:
+        if option.id = option_id:
+            signal = ParseSignal.choice_in_rubric
+            found_case = True
+            break
+    if not found_case: signal = ParseSignal.choice_not_in_rubric
+            
+    reasoning = reasoning.get("raw_output")
+    evidence = tuple(output.get("evidence"))
+    #if we reached this point then signal good
+    if signal is None:
+        signal = ParseSignal.decodable
+    return Decision(
+        option_id = option_id
+        signal = signal
+        correctness = Correctness.UNKNOWN #this gets fixed later
+        mentions = evidence
+        received_explanation = reasoning
     )
+    
+    
 
 
 def grade(decision: Decision, case: Case) -> Correctness:
