@@ -105,6 +105,13 @@ def reject_constant(value: str) -> None:
     raise ValueError(f"non-JSON constant {value}")
 
 
+#: Unresolved merge markers as Git writes them. Only the angle-bracket forms are
+#: matched: a bare ``=======`` line is a valid Markdown setext heading underline,
+#: so matching it would fail legitimate documents. Both angle forms are always
+#: present in a real conflict, so neither side can slip through.
+CONFLICT_MARKER = re.compile(r"^(?:<{7}|>{7})(?:\s|$)", re.MULTILINE)
+
+
 def tracked_markdown(root: Path) -> set[Path] | None:
     """Resolved paths of the Markdown files Git tracks under ``root``.
 
@@ -185,6 +192,12 @@ def check(root: Path, *, layout: bool = True
     for path, (_, prose) in documents.items():
         relative = path.relative_to(root)
         visible = INLINE_CODE.sub("", prose)
+        if CONFLICT_MARKER.search(prose):
+            line = prose[:CONFLICT_MARKER.search(prose).start()].count("\n") + 1
+            errors.append(
+                f"{relative}:{line}: unresolved Git conflict marker; "
+                "resolve the merge before committing"
+            )
         if re.search(r"\[\[[^\n]*?\]\]", visible):
             errors.append(f"{relative}: residual Obsidian link")
         if (re.search(r"!?\[[^\]\n]+\]\[[^\]\n]*\]", visible)
@@ -302,6 +315,20 @@ class CheckerTests(unittest.TestCase):
         self.assertEqual(skipped, ["scratch.md"])
         self.assertEqual(counts["untracked Markdown skipped"], 1)
         self.assertEqual(counts["documents"], 1)
+
+    def test_conflict_markers_fail_the_lane(self):
+        """`806deea` committed markers into docs/evaluation.md and this lane passed."""
+        self.write("README.md",
+                   "# Doc\n\n<<<<<<< HEAD\nours\n=======\ntheirs\n>>>>>>> branch\n")
+        errors, _, _, _ = check(self.root, layout=False)
+        self.assertTrue(any("unresolved Git conflict marker" in e for e in errors), errors)
+        self.assertTrue(any("README.md:3:" in e for e in errors), errors)
+
+    def test_setext_heading_underline_is_not_a_conflict_marker(self):
+        """A row of equals signs is valid Markdown; it must not fail the lane."""
+        self.write("README.md", "Title\n=======\n\nBody text.\n")
+        errors, _, _, _ = check(self.root, layout=False)
+        self.assertEqual([e for e in errors if "conflict marker" in e], [])
 
     def test_tracked_markdown_is_still_checked(self):
         """Skipping must not become a way for a real document to escape."""
