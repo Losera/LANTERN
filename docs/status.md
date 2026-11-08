@@ -19,8 +19,10 @@ section originally reported were repaired by
 [PR 49](https://github.com/Losera/LANTERN/pull/49); `docs/evaluation.md` still
 contains committed conflict markers at lines 44-57. B's approved case and frozen
 grading key, a condition-sensitive renderer, and an implemented grader remain
-dependencies: `prompts.render` still ignores its `condition`, so `prepare` refuses
-with "Condition-sensitive renderer is not ready" and no experiment can start. These
+dependencies. `prepare` is gated twice over and no experiment can start: the
+grading seam refuses first, so it reports "B's parser/grader is not ready", and the
+condition-sensitive renderer check behind it would refuse next because
+`prompts.render` still ignores its `condition`. These
 B- and C-owned paths are unchanged by A's implementation. Do not infer readiness from
 the new synthetic workflow tests or #26's closure.
 
