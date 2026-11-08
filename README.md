@@ -49,6 +49,8 @@ runner/      experiment runner: implemented parts and declared seams
 frontend/    static evidence view; reads frontend/data/export.json
 fixtures/    an example case and clearly labelled synthetic attempts
 tools/       offline checkers
+examples/    reviewed Slurm job scripts and diagnostics
+evidence/    retained output from runs that cannot be reproduced on demand
 docs/        decisions, constraints, and proposed formats
 ```
 
