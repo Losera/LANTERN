@@ -721,6 +721,36 @@ def check(root: Path, *, oracle: Path | None = None) -> tuple[list[str], Counter
 class CheckerTests(unittest.TestCase):
     """Each test makes one check fail, so a silent checker cannot pass."""
 
+    def test_case_cues_are_loaded_and_strictly_validated(self):
+        from copy import deepcopy
+        from runner.cases import CaseError, validate_case
+
+        path = ROOT / "fixtures/cases/example-campus-transport.json"
+        document = json.loads(path.read_text(encoding="utf-8"))
+        case = validate_case(document, where=str(path))
+        self.assertEqual([cue.id for cue in case.irrelevant_cues], ["cue-prose"])
+        self.assertEqual(case.relevant_cues, ())
+
+        empty = deepcopy(document)
+        empty["cues"] = []
+        self.assertEqual(validate_case(empty, where=str(path)).cues, ())
+
+        invalid_cues = [
+            ([{"id": "cue-prose", "cue": "A cue"}], "relevant.*declared"),
+            ([document["cues"][0], document["cues"][0]], "duplicate id"),
+        ]
+        for cues, message in invalid_cues:
+            with self.subTest(cues=cues):
+                invalid = deepcopy(document)
+                invalid["cues"] = cues
+                with self.assertRaisesRegex(CaseError, message):
+                    validate_case(invalid, where=str(path))
+
+        missing = deepcopy(document)
+        del missing["cues"]
+        with self.assertRaisesRegex(CaseError, "missing required field 'cues'"):
+            validate_case(missing, where=str(path))
+
     def test_adapter_check_catches_a_stub_without_transport(self):
         from runner import models
 
