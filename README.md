@@ -3,10 +3,13 @@
 LANTERN will test whether presenting the same evidence differently changes an
 AI recommendation, then test whether a declared correction helps. Markets &
 Networks is the required track. This repository provides engineering and
-collaboration setup plus an application skeleton: the runner's contracts and
-deterministic parts are implemented, while prompt rendering, model adapters,
-output parsing, and tool execution are explicit seams awaiting approval. No
-model is run by any command, and the Alpha experiments are not built.
+collaboration setup plus an application skeleton. Deterministic runner parts,
+initial prompt rendering and the local model adapter are implemented; output
+parsing and tool execution remain explicit seams. The
+[Alpha batch workflow](docs/alpha-batch.md) prepares frozen inputs and supports
+human-operated submission/recovery. Its standalone GPU executor requires an
+approved allocation and experiment; offline checks never execute a model.
+Real experiment readiness remains blocked on the case, renderer and parser.
 
 ## Start here
 

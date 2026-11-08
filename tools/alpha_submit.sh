@@ -6,7 +6,10 @@ usage() {
     cat <<'HELP'
 Usage:
   ALPHA_HOST=user@alpha1.empireai.edu bash tools/alpha_submit.sh submit JOB_FILE [FILES_OR_DIRS...]
+  ALPHA_HOST=user@alpha1.empireai.edu bash tools/alpha_submit.sh submit --run-id RUN_ID JOB_FILE [FILES_OR_DIRS...]
   ALPHA_HOST=user@alpha1.empireai.edu bash tools/alpha_submit.sh status 'JOB_ID[;CLUSTER]'
+  ALPHA_HOST=user@alpha1.empireai.edu bash tools/alpha_submit.sh observe 'JOB_ID[;CLUSTER]'
+  ALPHA_HOST=user@alpha1.empireai.edu bash tools/alpha_submit.sh receipt RUN_ID
   ALPHA_HOST=user@alpha1.empireai.edu bash tools/alpha_submit.sh fetch RUN_ID NEW_LOCAL_DIRECTORY
 
 submit uploads explicit paths and prints the run ID and Slurm job ID.
@@ -23,7 +26,7 @@ fail() { printf 'alpha_submit: %s\n' "$*" >&2; exit 1; }
 command_name="${1:---help}"
 case "$command_name" in
     -h|--help|help) usage; exit 0 ;;
-    submit|status|fetch) shift ;;
+    submit|status|observe|receipt|fetch) shift ;;
     *) usage >&2; fail "Unknown command: $command_name" ;;
 esac
 
@@ -52,6 +55,13 @@ local_path() {
 
 case "$command_name" in
     submit)
+        run_id=''
+        if [[ "${1:-}" == --run-id ]]; then
+            (( $# >= 3 )) || fail '--run-id needs an ID and job script.'
+            run_id="$2"
+            [[ "$run_id" =~ ^[[:alnum:]][[:alnum:]_-]*$ ]] || fail 'Invalid run ID.'
+            shift 2
+        fi
         (( $# >= 1 )) || fail 'submit needs a job script.'
         job_script="$1"
         shift
@@ -75,7 +85,7 @@ case "$command_name" in
             payloads+=("$(local_path "$path")")
         done
 
-        run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$-$RANDOM"
+        [[ -n "$run_id" ]] || run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$-$RANDOM"
         remote_dir="lantern/runs/$run_id"
         printf 'Run ID: %s\nRemote directory: %s:%s\n' "$run_id" "$alpha_host" "$remote_dir"
         ssh "${connection_options[@]}" -- "$alpha_host" "mkdir -p lantern/runs && mkdir '$remote_dir'"
@@ -94,13 +104,24 @@ case "$command_name" in
         printf 'Job ID: %s\n' "$submission"
         ;;
 
-    status)
+    status|observe)
         (( $# == 1 )) || fail 'status needs one job ID (optionally JOB_ID;CLUSTER).'
         [[ "$1" =~ ^([0-9]+)(\;([[:alnum:]_-]+))?$ ]] || fail 'Invalid job ID or cluster.'
         job_id="${BASH_REMATCH[1]}"
         cluster="${BASH_REMATCH[3]:-}"
         cluster_option=''
         [[ -z "$cluster" ]] || cluster_option="--clusters='$cluster'"
+        if [[ "$command_name" == observe ]]; then
+            # Two named sections; neither query failure nor absent accounting
+            # can be read as terminal completion by the coordinator.
+            ssh "${connection_options[@]}" -- "$alpha_host" "query_status=0
+printf 'QUEUE\\n'
+squeue --me --noheader --format='%i|%T' $cluster_option || query_status=1
+printf 'ACCOUNTING\\n'
+sacct --allocations --noheader --parsable2 --jobs='$job_id' --format=JobIDRaw,State,ExitCode $cluster_option || query_status=1
+exit \$query_status"
+            exit $?
+        fi
         # Always try accounting, even if the completed job has left the queue.
         if ! ssh "${connection_options[@]}" -- "$alpha_host" "query_status=0
 squeue --jobs='$job_id' $cluster_option || query_status=1
@@ -109,6 +130,12 @@ exit \$query_status"; then
             fail 'A status query failed; inspect the displayed results. Missing records do not establish completion.'
         fi
         printf 'Read State and ExitCode above; empty records do not establish completion.\n'
+        ;;
+
+    receipt)
+        (( $# == 1 )) || fail 'receipt needs one run ID.'
+        [[ "$1" =~ ^[[:alnum:]][[:alnum:]_-]*$ ]] || fail 'Invalid run ID.'
+        ssh "${connection_options[@]}" -- "$alpha_host" "cat 'lantern/runs/$1/submission.txt'"
         ;;
 
     fetch)

@@ -93,16 +93,19 @@ The lead chose to wait for agreed cases and issue 25's matching/refusal/truncati
 rules. The existing fictional fixture is not approved by this handoff. Do not
 invent a parser or modify B's fixtures, Kai's adapter, or the runner contracts.
 
-Before implementation/execution, freeze the agreed inputs and their hashes and
-declare a ten-attempt schedule, including any repetitions. Every attempted
-response stays in the denominator. Do not replace failures until ten successes
-appear. Record valid choices, invalid choices, refusals, truncation, and runtime
-failures separately; correctness needs the agreed rubric. EOS termination and
-budget exhaustion must be distinguished for this Transformers backend.
+Updated by the lead's November 8 implementation plan: freeze twenty attempts
+before execution, one approved case across five arms with four repetitions per
+arm. All twenty must start and at least ten must produce outcome `decision` to
+pass the gate. Never replace failures or top up the schedule. Correctness is
+graded separately. The JSON-only protocol does not classify refusal separately.
 
-The future harness will load this same model once and generate sequentially,
-with BF16, batch 1, no silent input truncation, at most 1,024 input and 128 output
-tokens, and explicit greedy controls. No Alpha runner integration is included.
+The approved harness uses this same BF16 model, batch 1, sequential fresh
+processes, and a 60-second attempt deadline including loading. Input/output
+limits remain 1,024/128 tokens with no silent input truncation. Disable model
+defaults, enforce greedy decoding, and explicitly stop on both EOS tokens
+`151645` and `151643`. The same batch supplies throughput evidence, including
+loading overhead. See the [operator guide](alpha-batch.md) for the new resumable
+workflow. Earlier diagnostic evidence remains unchanged.
 
 ## Parallel workflow
 

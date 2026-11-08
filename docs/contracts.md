@@ -31,6 +31,24 @@ plausible data is indistinguishable from a result once it reaches the export.
 | `runner/tools.py` | Mixed | Proposal recording implemented; execution is a seam |
 | `runner/prompts.py` | Implemented | Prompt rendering and the prompt digest |
 | `runner/parsing.py` | Mixed | Reading output implemented; grading is a seam |
+| `runner/alpha_batch.py` | Implementation awaiting semantic review | Frozen preparation, submission recovery, import and export; depends on B's case/rendering/interpretation work |
+
+The lead approved the bounded Alpha coordinator design on November 8, 2026.
+Its local progress journal has independent format `lantern.alpha.progress`,
+version `1`; it is not an attempt-schema extension. It binds a run to its host,
+frozen input hashes, submission intent, job receipt, transport logs, fetched
+evidence hashes and completion state. Updates replace the journal atomically
+under an exclusive advisory lock. Unsupported versions refuse recovery;
+there is no automatic journal migration. Preserve the directory and use the
+matching reviewed implementation to recover an older run.
+
+The [batch operator guide](alpha-batch.md) defines `prepare`, `submit`, and
+`resume`. The existing batch/result envelopes and attempt records are unchanged.
+The standalone GPU executor emits those envelopes; it does not implement an
+Alpha `ModelAdapter` or change the local Ollama adapter. Removing the new
+coordinator leaves existing helper/import commands usable. Preserve completed
+bundles and journals when rolling back; do not resubmit an uncertain run with
+an older helper.
 
 The seams and what each one waits on:
 

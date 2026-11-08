@@ -1,11 +1,39 @@
 # Current status and handoff
 
+## Alpha batch implementation: November 8, 2026
+
+The lead approved the twenty-attempt schedule, both EOS tokens, a Python
+coordinator with a versioned progress journal, fresh per-attempt processes, and
+one timed gate batch. Implemented on `feat/alpha-batch-resume`
+in `/tmp/LANTERN-alpha-batch`, rebased onto `7c49b34` and merged through
+[PR 44](https://github.com/Losera/LANTERN/pull/44) after the lead's semantic review.
+See the [operator guide](alpha-batch.md) and [implementation handoff](alpha-batch-handoff.md).
+
+No live job, authentication, model invocation or experiment was performed by
+this implementation session. The existing Alpha diagnostics remain retained
+observations, not completed decision or throughput gates. The local Lean source
+commit `990d953` already exists; its publication destination remains deferred.
+
+The malformed example fixture and the incomplete cue-format change that this
+section originally reported were repaired by
+[PR 49](https://github.com/Losera/LANTERN/pull/49); `docs/evaluation.md` still
+contains committed conflict markers at lines 44-57. B's approved case and frozen
+grading key, a condition-sensitive renderer, and an implemented grader remain
+dependencies: `prompts.render` still ignores its `condition`, so `prepare` refuses
+with "Condition-sensitive renderer is not ready" and no experiment can start. These
+B- and C-owned paths are unchanged by A's implementation. Do not infer readiness from
+the new synthetic workflow tests or #26's closure.
+
+The following sections are dated historical checkpoints. Their earlier pending
+diagnostic/publication statements do not supersede the newer evidence or live
+GitHub task state.
+
 ## Grading seam restored: November 8, 2026 UTC
 
 Objective: return `main` to a green offline lane after `e5cf45d` removed the grading
-seam. Branch `fix/restore-grading-seam` in `/tmp/LANTERN-grading-seam`, based on
-`e5cf45d419a6ce2c5233fe500eb4e656939c6c24`. Awaiting the lead's semantic review
-before commit; nothing is merged.
+seam. Committed as `f0324ec` on `fix/restore-grading-seam`, based on
+`e5cf45d419a6ce2c5233fe500eb4e656939c6c24`, and merged through
+[PR 50](https://github.com/Losera/LANTERN/pull/50) as `7c49b34`.
 
 `e5cf45d` was pushed directly to `main` with no branch, pull request, or review. It
 gave `parsing.grade` a body returning `CORRECT` for any in-rubric choice, which
@@ -33,9 +61,9 @@ is recorded as the open question for issue 9.
 | Parser/import integration | Passed | `python3 tools/test_alpha_parsing.py`: 17 tests OK, 2 skipped as `requires PR #44 in combined checkout`; `python3 tools/test_alpha_import.py`: 39 tests OK |
 | Alpha helper and diagnostics | Passed | `python3 tools/test_alpha_submit.py` and `python3 tools/test_alpha_diagnostic.py`: OK |
 | Case validation | Passed | `python3 -m runner.cli validate`: PASS |
-| Documentation lane | Passed | `python3 tools/check_bootstrap.py --self-test` OK; `check_bootstrap.py`: 26 documents, 151 links; 55 external URLs not fetched |
+| Documentation lane | Passed | `python3 tools/check_bootstrap.py --self-test` OK; `check_bootstrap.py`: 26 documents, 154 links; 56 external URLs not fetched |
 | Whitespace | Passed | `git diff --check` clean |
-| CI at this head | Not run | The branch is uncommitted and unpushed; GitHub has not evaluated it |
+| CI at the merged head | Passed | [Run 42483044032](https://github.com/Losera/LANTERN/actions/runs/42483044032): application, documentation/whitespace and Alpha helper lanes all green at `f0324ec` |
 | Grading correctness | Not established | No frozen key exists; the seam refuses rather than grades |
 | Renderer condition-sensitivity | Still broken | `prompts.render` ignores its `condition`; unchanged by this branch |
 | `docs/evaluation.md` conflict markers | Still present | Lines 44-57 from `806deea`; a separate repair |
