@@ -1,5 +1,21 @@
 # Current status and handoff
 
+## Next session: the first real measurement
+
+The render, generate and parse path now runs end to end on the approved local
+model, and the five condition arms render distinct prompts. What does not exist
+is a measurement: every attempt record is still synthetic.
+
+One blocker remains, and it is the orchestration command in
+[issue 16](https://github.com/Losera/LANTERN/issues/16). `runner/cli.py` cannot
+execute the experiment. See the
+[measurement handoff](measurement-handoff.md) for state, non-negotiables,
+traps that have already cost time, and the verification commands.
+
+Grading stays out of scope for that run: `runner/analysis.py` derives the
+framing effect from option choices alone, so correctness remains `unknown` and
+`parsing.grade` remains a refusing seam.
+
 ## Alpha batch implementation: November 8, 2026
 
 The lead approved the twenty-attempt schedule, both EOS tokens, a Python
