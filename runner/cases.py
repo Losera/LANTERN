@@ -62,11 +62,8 @@ class Rubric:
 
 @dataclass(frozen=True)
 class Cue:
-    """Provides a cue to be considered in the judgement, and whether it is relevant or not
-    
-    Provides context on stylistic manners that should be considered when making a decision
-    """
-    
+    """A case-level presentation or context cue with declared relevance."""
+
     id: str
     cue: str
     relevant: bool
@@ -103,7 +100,7 @@ class Case:
         return tuple(item for item in self.cues if item.relevant)
         
     @property
-    def irrelevant_cues(self) -> tuple[Cues, ...]:
+    def irrelevant_cues(self) -> tuple[Cue, ...]:
         return tuple(item for item in self.cues if not item.relevant)
 
 
@@ -146,7 +143,10 @@ def validate_case(data: object, *, where: str = "case") -> Case:
         raise CaseError(f"{where}: document must be a JSON object")
     _exact_keys(
         data,
-        {"schema_version", "id", "status", "question", "options", "evidence", "rubric"},
+        {
+            "schema_version", "id", "status", "question", "options",
+            "evidence", "cues", "rubric",
+        },
         where,
     )
 
@@ -198,6 +198,26 @@ def validate_case(data: object, *, where: str = "case") -> Case:
             relevant=relevant,
         ))
     _reject_duplicates([item.id for item in evidence], f"{where}.evidence", "id")
+
+    raw_cues = _require(data, "cues", list, where)
+    cues: list[Cue] = []
+    for index, raw in enumerate(raw_cues):
+        spot = f"{where}.cues[{index}]"
+        if not isinstance(raw, dict):
+            raise CaseError(f"{spot}: must be an object")
+        _exact_keys(raw, {"id", "cue", "relevant"}, spot)
+        relevant = raw.get("relevant")
+        if not isinstance(relevant, bool):
+            raise CaseError(
+                f"{spot}: 'relevant' must be declared as a boolean in advance; "
+                "see docs/evaluation.md"
+            )
+        cues.append(Cue(
+            id=_require(raw, "id", str, spot),
+            cue=_require(raw, "cue", str, spot),
+            relevant=relevant,
+        ))
+    _reject_duplicates([item.id for item in cues], f"{where}.cues", "id")
     
     #UPDATE WITH HELP
     raw_rubric = _require(data, "rubric", dict, where)
@@ -216,6 +236,7 @@ def validate_case(data: object, *, where: str = "case") -> Case:
         question=question,
         options=tuple(options),
         evidence=tuple(evidence),
+        cues=tuple(cues),
         rubric=rubric,
         status=status,
         schema_version=version,
@@ -253,6 +274,6 @@ def load_cases(directory: str | Path) -> tuple[Case, ...]:
 
 
 __all__ = [
-    "CaseError", "Option", "EvidenceItem", "Rubric", "Case",
+    "CaseError", "Option", "EvidenceItem", "Cue", "Rubric", "Case",
     "validate_case", "load_case", "load_cases",
 ]

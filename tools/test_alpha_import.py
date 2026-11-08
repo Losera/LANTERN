@@ -466,10 +466,10 @@ class ImportTests(unittest.TestCase):
         self.write()
         self.refuse("not_started conflicts")
 
-    def test_actual_parser_seam_and_grader_seam_refuse(self):
-        self.parse_patch.stop()
+    def test_unavailable_parser_and_grader_refuse(self):
+        self.parser.side_effect = NotImplementedError("parser unavailable")
         self.refuse("parser/grader unavailable")
-        self.parse_patch.start()
+        self.parser.side_effect = mock_parse
         self.grader.side_effect = NotImplementedError("grading not approved")
         self.refuse("parser/grader unavailable")
 

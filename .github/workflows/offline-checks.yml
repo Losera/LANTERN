@@ -1,0 +1,79 @@
+name: LANTERN offline checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  application:
+    name: Application lane
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      - name: Self-test application checker
+        run: python3 tools/check_app.py --self-test
+
+      - name: Check application skeleton
+        run: python3 tools/check_app.py
+
+  documentation:
+    name: Documentation lane and diff whitespace
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository and PR history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      - name: Self-test documentation checker
+        run: python3 tools/check_bootstrap.py --self-test
+
+      - name: Check project documentation
+        run: python3 tools/check_bootstrap.py
+
+      - name: Check changed lines for whitespace errors
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          CHECK_SHA: ${{ github.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git diff --check "${PR_BASE}...${PR_HEAD}"
+          else
+            git diff --check "$EVENT_BEFORE" "$CHECK_SHA"
+          fi
+
+  alpha-submit:
+    name: Alpha submission helper lane
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      - name: Test Alpha submission helper offline
+        run: python3 tools/test_alpha_submit.py
