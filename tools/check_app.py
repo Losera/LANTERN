@@ -129,6 +129,19 @@ def check_adapter() -> None:
     from runner import models
     from runner.unknown import Unknown
 
+    # The decoding schema and the parser's required field set are the same
+    # contract written twice. If they drift, the model is constrained to a
+    # shape the parser rejects and every attempt reads as malformed.
+    schema = models.UnapprovedAdapter.RESPONSE_SCHEMA
+    if set(schema["required"]) != {"option_id", "evidence_ids", "explanation"}:
+        raise ValueError(
+            "adapter response schema requires "
+            f"{sorted(schema['required'])}, which is not the field set "
+            "runner.parsing.parse accepts"
+        )
+    if set(schema["properties"]) != set(schema["required"]):
+        raise ValueError("adapter response schema declares unrequired properties")
+
     payload = models.PromptPayload("SYNTHETIC offline checker input", "fixture-digest", ())
     for scenario in ("stop", "length", "api_error", "transport_error"):
         calls: list[str] = []
@@ -147,6 +160,7 @@ def check_adapter() -> None:
                 raise ValueError(f"unexpected adapter URL: {request.full_url}")
             expected = {
                 "model": "qwen2.5:1.5b-instruct", "prompt": payload.text, "stream": False,
+                "format": models.UnapprovedAdapter.RESPONSE_SCHEMA,
                 "options": {"temperature": 0.0, "top_p": 1.0, "seed": 1,
                             "num_predict": 512, "num_ctx": 4096},
             }

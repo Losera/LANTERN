@@ -162,6 +162,29 @@ class UnapprovedAdapter:
     TOP_P = 1.0
     SEED = 1
 
+    #: JSON schema sent as Ollama's ``format``, constraining generation to the
+    #: approved response contract. docs/evaluation.md treats fences,
+    #: surrounding prose, and missing or extra fields as ``malformed`` and
+    #: forbids extracting or repairing candidate JSON, so an unconstrained
+    #: instruct model would very likely produce nothing readable. This makes
+    #: the shape a decoding constraint rather than a request the model may
+    #: decline. It constrains shape only: no option, evidence id, or wording is
+    #: suggested, so it cannot bias which recommendation is chosen.
+    #:
+    #: The field names must stay identical to the set
+    #: :func:`runner.parsing.parse` requires; the offline lane checks that they
+    #: do, because the two are the same contract written in two places.
+    RESPONSE_SCHEMA = {
+        "type": "object",
+        "properties": {
+            "option_id": {"type": "string"},
+            "evidence_ids": {"type": "array", "items": {"type": "string"}},
+            "explanation": {"type": "string"},
+        },
+        "required": ["option_id", "evidence_ids", "explanation"],
+        "additionalProperties": False,
+    }
+
     def _request(self, path: str, body: dict[str, object] | None = None) -> bytes:
         """Make one bounded request and retain HTTP error bodies for callers."""
         data = None if body is None else json.dumps(body).encode("utf-8")
@@ -229,6 +252,7 @@ class UnapprovedAdapter:
                 "model": self.MODEL_ID,
                 "prompt": payload.text,
                 "stream": False,
+                "format": self.RESPONSE_SCHEMA,
                 "options": {
                     "temperature": self.TEMPERATURE,
                     "top_p": self.TOP_P,
