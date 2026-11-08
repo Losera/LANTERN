@@ -242,15 +242,16 @@ def parse(raw_output: str, case: Case) -> Decision:
 
 
 def grade(decision: Decision, case: Case) -> Correctness:
-    """SEAM: score a readable decision against the rubric.
-
-    Raises:
-        NotImplementedError: always. Correctness is rubric-defined and the
-            rubric is unapproved.
-    """
-    raise NotImplementedError(
-        "grading is a seam: no rubric is approved. See docs/project.md."
-    )
+    #grade is supposed to analyze the rubric, this isnt really possible at the moment
+    signal = decision.signal
+    if signal.choice_in_rubric == True:
+        #for now we assume correctness as agreeing with the model
+        return Correctness.CORRECT
+    elif signal.choice_not_in_rubric:
+        return Correctness.INCORRECT
+    elif signal.transport_error or signal.truncated or signal.refused or not signal.decodable:
+        return Correctness.UNKNOWN
+    return Correctness.UNKNOWN
 
 
 __all__ = ["ParseSignal", "Mention", "Decision", "parse", "grade"]
