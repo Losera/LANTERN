@@ -1,0 +1,4 @@
+# Direct inference dependencies; transitive versions/hashes are recorded by pip.
+transformers==4.57.1
+accelerate==1.11.0
+numpy==2.2.6
