@@ -41,20 +41,8 @@ Cues should be marked either relevant or irrelevant, either by the User or the T
 context on what the A.I. should look into when comparing options. Prose, style, formatting, and order of information
 should be either disregarded or be considered by the A.I. on a case by case situation. They can be added into the Prompt
 manufacturing or disregarded if the User chooses to not include them.
-<<<<<<< HEAD
-## Reading and grading model choices
-=======
-Cues should be marked either relevant or irrelevant, either by the User or the Test Case. These cues should provide
-context on what the A.I. should look into when comparing options. Prose, style, formatting, and order of information
-should be either disregarded or be considered by the A.I. on a case by case situation. They can be added into the Prompt
-manufacturing or disregarded if the User chooses to not include them.
 
-##Analyzing A.I. Choices Rules
-This is essentially what was written on the WhiteBoard; Two steps take place for evaluation to occur. The response from
-A.I. is recorded as a JSON file, using a template provided in the prompt; this is then parsed, and moved to a Python object,
-Decision, which contains the evidence provided for the choice, the choice provided by the A.I., information about the model
-response, any received explanation, and most importantly, the "Correctness"
->>>>>>> 0eb0fdf (Resolved issue 26, cues mostly implemented, and updated the test JSON accordingly)
+## Reading and grading model choices
 
 Rules for the bounded first experiment, clarified by Teammate A on November 8,
 2026. These rules replace PR 39's definition of correctness as agreement with
