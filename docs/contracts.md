@@ -57,6 +57,12 @@ The seams and what each one waits on:
 | `parsing.grade` | A frozen grading key for every rubric requirement |
 | `tools.ToolRegistry.execute` | Tool contract, result format, identifier scheme |
 
+Promoting a seam is a separate, lead-applied change to `tools/check_app.py`: its
+`check_seams` asserts that a seam refuses and that implemented code does not, so an
+implementation that lands without its promotion leaves the lane asserting the
+opposite of the truth. A seam issue stays open until that promotion is on `main`; see
+the [contributor guide](../CONTRIBUTING.md#claim-work).
+
 `prompts.render` is no longer a seam: it returns a `PromptPayload` and the
 offline lane now checks that it does. Implemented is not the same as correct.
 At `6aa11a6` the function does not read its `condition` argument, so all five
