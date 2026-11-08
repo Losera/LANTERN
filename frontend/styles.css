@@ -1,7 +1,11 @@
 /* LANTERN evidence view.
-   Tokens on :root define the light palette; the dark block redefines only
-   those tokens. No colour is defined solely inside a media query, so a
-   browser that reports no preference still renders a complete palette. */
+   Tokens on :root define the complete light palette; the dark blocks redefine
+   only those tokens. No colour is defined solely inside a media query, so a
+   browser that reports no preference still renders a complete palette.
+
+   Three theme states. "Auto" leaves no data-theme attribute and follows the
+   system preference. An explicit choice sets data-theme on <html>, and the
+   guard on the media query means a Light choice wins on a dark system. */
 
 :root {
   --bg: #f6f7f9;
@@ -26,7 +30,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #11141a;
     --surface: #1a1e26;
     --surface-sunken: #141820;
@@ -46,6 +50,25 @@
   }
 }
 
+:root[data-theme="dark"] {
+  --bg: #11141a;
+  --surface: #1a1e26;
+  --surface-sunken: #141820;
+  --border: #2b313c;
+  --border-strong: #3d4552;
+  --text: #e7eaf0;
+  --text-dim: #9aa3b2;
+  --accent: #8fb0ea;
+  --accent-soft: #1d2735;
+  --flip: #f0a79a;
+  --flip-soft: #30201d;
+  --stable: #8fd3ae;
+  --stable-soft: #16271f;
+  --unresolved: #e8cd7e;
+  --unresolved-soft: #2a2415;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -59,12 +82,31 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
+/* The design centres the page rather than letting it span a wide monitor. */
+.shell { max-width: 1360px; margin: 0 auto; }
+
 h1, h2, h3 { line-height: 1.25; letter-spacing: -0.01em; }
 h1 { margin: 0; font-size: 1.9rem; }
 h2 { margin: 0 0 0.35rem; font-size: 1.15rem; }
 h3 { margin: 1.6rem 0 0.5rem; font-size: 0.92rem; text-transform: uppercase;
      letter-spacing: 0.06em; color: var(--text-dim); font-weight: 600; }
 code { font-family: var(--mono); font-size: 0.92em; }
+
+/* ---------- focus ---------- */
+
+/* The page had no focus styling at all. Every interactive control needs a
+   ring that stays legible on --accent-soft, which is what a selected row and
+   a hovered nav link both use as their background. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+:focus:not(:focus-visible) { outline: none; }
+.attempt-pick:focus-visible, .lt-nav a:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 1px;
+}
 
 /* ---------- masthead ---------- */
 
@@ -76,12 +118,17 @@ code { font-family: var(--mono); font-size: 0.92em; }
   justify-content: space-between;
   padding: 1.75rem 0 1.25rem;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 1.5rem;
 }
 
 .tagline { margin: 0.3rem 0 0; color: var(--text-dim); max-width: 46ch; }
 
 .masthead-meta { display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
+
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+
+/* The second chip states how many records the label covers, so it reads as
+   related to the label rather than as a separate claim. */
+#synthetic-chip { background: var(--surface-sunken); color: var(--text-dim); border-color: var(--border-strong); }
 
 .chip {
   display: inline-block;
@@ -105,9 +152,90 @@ code { font-family: var(--mono); font-size: 0.92em; }
 .meta-grid dt { color: var(--text-dim); }
 .meta-grid dd { margin: 0; font-family: var(--mono); }
 
+.theme-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.8rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.35rem 0.7rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+}
+.theme-toggle legend {
+  padding: 0 0.3rem;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.theme-toggle label { display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; }
+.theme-toggle input { accent-color: var(--accent); margin: 0; }
+
+/* ---------- section nav ---------- */
+
+.lt-nav { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; font-size: 0.86rem; }
+.lt-nav a {
+  color: var(--accent);
+  text-decoration: none;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.lt-nav a:hover { background: var(--accent-soft); }
+.lt-nav a.here { background: var(--accent-soft); border-color: var(--accent); color: var(--text); font-weight: 650; }
+
+.section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 0.75rem 0;
+  margin-bottom: 1.5rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+/* The sticky nav would otherwise sit over the heading an anchor jumps to. */
+main .pane, .boundaries { scroll-margin-top: 5.5rem; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+.lt-btn {
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 650;
+  padding: 0.55rem 1rem;
+  min-height: 44px;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--surface);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.lt-btn.ghost { background: var(--surface); color: var(--accent); }
+
 /* ---------- panes ---------- */
 
 main { display: grid; gap: 1.25rem; }
+
+/* Grid and flex children default to min-width:auto, which lets a wide table's
+   min-content width push the pane past the viewport instead of scrolling
+   inside its own .table-scroll. Every box between the grid and the scroller
+   has to be allowed to shrink. */
+main > *, .pair-columns > *, .case, .case-body, #cases > *, #condition-sets > * {
+  min-width: 0;
+}
 
 .pane {
   background: var(--surface);
@@ -129,6 +257,7 @@ main { display: grid; gap: 1.25rem; }
   font-size: 0.88rem;
 }
 .notice code { background: rgba(127, 127, 127, 0.18); padding: 0.1rem 0.3rem; border-radius: 4px; }
+.notice.empty { background: var(--unresolved-soft); color: var(--unresolved); }
 
 /* ---------- verdict ---------- */
 
@@ -158,8 +287,16 @@ main { display: grid; gap: 1.25rem; }
   padding: 0.8rem 0.9rem;
 }
 .tile .value { font-size: 1.5rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.tile .value.text { font-size: 1.15rem; font-family: var(--mono); }
 .tile .denominator { font-size: 0.85rem; color: var(--text-dim); font-weight: 400; }
 .tile .name { font-size: 0.78rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* The two pair tables sit side by side once there is room for both. */
+.pair-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+  gap: 0 1.5rem;
+}
 
 /* ---------- tables ---------- */
 
@@ -187,9 +324,25 @@ td.wrap, th.wrap { white-space: normal; min-width: 14rem; }
 tbody tr:last-child td { border-bottom: none; }
 td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); }
 
-tr.selectable { cursor: pointer; }
 tr.selectable:hover td { background: var(--accent-soft); }
-tr.selected td { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
+tr.selected td { background: var(--accent-soft); }
+tr.selected td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+
+/* Selection is a real button, so Enter and Space come from the platform
+   rather than from a keydown handler on a row. */
+.attempt-pick {
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0.15rem 0;
+  min-height: 32px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.attempt-pick[aria-pressed="true"] { color: var(--text); font-weight: 650; }
 
 .badge {
   display: inline-block;
@@ -210,6 +363,34 @@ tr.selected td { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(-
 
 .legend { display: flex; flex-wrap: wrap; gap: 0.4rem 0.6rem; margin-bottom: 0.9rem; }
 
+/* ---------- filters ---------- */
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: flex-end;
+  padding: 0.85rem 1rem;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.field { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.9rem; }
+.field label { font-weight: 650; font-size: 0.78rem; color: var(--text-dim);
+               text-transform: uppercase; letter-spacing: 0.05em; }
+.input {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.55rem 0.7rem;
+  min-height: 44px;
+  border: 1px solid var(--text-dim);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+.filter-count { margin: 0; font-size: 0.82rem; font-family: var(--mono); color: var(--text-dim); }
+.filter-caveat { margin: 0.6rem 0 1rem; }
+
 /* ---------- cases ---------- */
 
 .case { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1rem; overflow: hidden; }
@@ -217,8 +398,11 @@ tr.selected td { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(-
 .case-head .q { font-weight: 600; }
 .case-status { font-size: 0.78rem; color: var(--unresolved); font-family: var(--mono); }
 .case-body { padding: 0.9rem 1.1rem; }
+.case-body h3:first-child { margin-top: 0; }
 .rubric { margin: 0 0 1rem; padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-dim); }
 .rubric li { margin-bottom: 0.2rem; }
+
+.options-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.3rem; }
 
 /* ---------- detail ---------- */
 
@@ -232,6 +416,7 @@ tr.selected td { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(-
                grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
 .detail-body h4 { margin: 0 0 0.4rem; font-size: 0.76rem; text-transform: uppercase;
                   letter-spacing: 0.05em; color: var(--text-dim); }
+.detail-body h4 + pre, .detail-body h4 + .kv { margin-bottom: 0.9rem; }
 pre {
   margin: 0;
   padding: 0.7rem 0.8rem;
@@ -274,7 +459,8 @@ pre {
 .boundary .detail-text { font-size: 0.83rem; color: var(--text-dim); margin: 0.15rem 0; }
 .boundary .source { font-size: 0.74rem; font-family: var(--mono); color: var(--text-dim); opacity: 0.85; }
 
-@media (min-width: 1100px) {
-  main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  #pane-comparison { grid-column: 1 / -1; }
+/* The comparison always spans; the narrower panes pair up when they fit. */
+@media (min-width: 60rem) {
+  main { grid-template-columns: repeat(auto-fit, minmax(min(100%, 32rem), 1fr)); }
+  #comparison, #case, #conditions, #attempts { grid-column: 1 / -1; }
 }

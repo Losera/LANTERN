@@ -4,6 +4,9 @@
  * build step. The page is a projection of the export: it adds no numbers of
  * its own, so whatever the runner could not establish stays unestablished
  * here. Where a value is unknown the page says "unknown" rather than 0.
+ *
+ * Every string that reaches the DOM goes through textContent. Model output and
+ * other supplied text is never parsed as markup.
  */
 
 'use strict';
@@ -41,6 +44,8 @@ const OUTCOME_CLASS = {
   error: 'decision-no'
 };
 
+const ALL = '__all__';
+
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -58,6 +63,10 @@ function show(value) {
   return String(value);
 }
 
+function mono(value) {
+  return el('code', null, show(value));
+}
+
 function table(target, columns, rows, options) {
   const settings = options || {};
   const node = document.getElementById(target);
@@ -68,7 +77,7 @@ function table(target, columns, rows, options) {
   const head = el('thead');
   const headRow = el('tr');
   columns.forEach(function (column) {
-    const th = el('th', column.wrap ? 'wrap' : null, column.label);
+    const th = el('th', [column.wrap ? 'wrap' : '', column.numeric ? 'num' : ''].join(' ').trim() || null, column.label);
     headRow.appendChild(th);
   });
   head.appendChild(headRow);
@@ -84,26 +93,9 @@ function table(target, columns, rows, options) {
   }
   rows.forEach(function (row, index) {
     const tr = el('tr');
-    if (settings.onSelect) {
-      tr.className = 'selectable';
-      tr.tabIndex = 0;
-      const choose = function () {
-        Array.prototype.forEach.call(body.children, function (other) {
-          other.classList.remove('selected');
-        });
-        tr.classList.add('selected');
-        settings.onSelect(row, index);
-      };
-      tr.addEventListener('click', choose);
-      tr.addEventListener('keydown', function (event) {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          choose();
-        }
-      });
-    }
+    if (settings.rowClass) tr.className = settings.rowClass(row, index) || '';
     columns.forEach(function (column) {
-      const value = column.render(row, index);
+      const value = column.render(row, index, tr);
       const td = el('td', [column.wrap ? 'wrap' : '', column.numeric ? 'num' : ''].join(' ').trim() || null);
       if (value instanceof Node) {
         td.appendChild(value);
@@ -115,17 +107,56 @@ function table(target, columns, rows, options) {
     body.appendChild(tr);
   });
   node.appendChild(body);
+  return body;
+}
+
+function tiles(target, rows) {
+  const host = document.getElementById(target);
+  host.replaceChildren();
+  rows.forEach(function (row) {
+    const tile = el('div', 'tile');
+    tile.appendChild(el('div', 'name', row[0]));
+    tile.appendChild(el('div', row[3] ? 'value text' : 'value', row[1]));
+    tile.appendChild(el('div', 'denominator', row[2]));
+    host.appendChild(tile);
+  });
 }
 
 function renderMasthead(data) {
-  const chip = document.getElementById('label-chip');
-  chip.textContent = data.label;
-  document.getElementById('meta-lane').textContent = data.lane;
-  document.getElementById('meta-generated').textContent = data.generated_utc;
-  document.getElementById('meta-conformance').textContent = data.oracle_conformance;
+  document.getElementById('label-chip').textContent = data.label;
+  document.getElementById('meta-lane').textContent = show(data.lane);
+  document.getElementById('meta-generated').textContent = show(data.generated_utc);
+  document.getElementById('meta-conformance').textContent = show(data.oracle_conformance);
   document.getElementById('meta-schema').textContent =
     'v' + data.schema_version + ' (proposed)';
+
+  /* The label already names the dataset, and the checker refuses an
+   * all-synthetic export whose label omits it. These two fields carry how many
+   * records that covers, which the label alone does not say. A mixed dataset
+   * must not read as a fully synthetic one, so the two cases differ. */
+  const chip = document.getElementById('synthetic-chip');
+  chip.hidden = false;
+  if (data.synthetic_records === 0) {
+    chip.textContent = 'No records';
+  } else if (data.all_records_synthetic) {
+    chip.textContent =
+      'All ' + show(data.synthetic_records) + ' records synthetic';
+  } else {
+    chip.textContent =
+      show(data.synthetic_records) + ' of ' + data.attempts.length +
+      ' records synthetic';
+  }
 }
+
+/* Pair columns are shared by the framing-only and correction tables so the two
+ * are visibly the same measurement reported in two places, never merged. */
+const PAIR_COLUMNS = [
+  { label: 'Case', render: function (r) { return r.case_id; } },
+  { label: 'Baseline choice', render: function (r) { return mono(r.baseline_option); } },
+  { label: 'Contrast choice', render: function (r) { return mono(r.contrast_option); } },
+  { label: 'Verdict', render: function (r) { return badge(r.verdict, r.verdict); } },
+  { label: 'Reason', wrap: true, render: function (r) { return r.reason; } }
+];
 
 function renderComparison(data) {
   const analysis = data.analysis;
@@ -135,36 +166,19 @@ function renderComparison(data) {
   banner.className = 'verdict-banner ' + analysis.effect;
   banner.replaceChildren(el('strong', null, copy[0]), el('span', null, copy[1]));
 
-  const covered = analysis.coverage.filter(function (row) { return row.covered; }).length;
-  const tiles = [
+  /* Every figure below is read from the export. None is recomputed here. */
+  tiles('comparison-tiles', [
     ['Attempts recorded', analysis.attempts, 'all arms, failures included'],
     ['Framing pairs', counts.pairs, 'baseline vs framing'],
     ['Flips', counts.flip, 'of ' + counts.pairs + ' pairs'],
     ['Stable', counts.stable, 'of ' + counts.pairs + ' pairs'],
-    ['Unresolved pairs', counts.unresolved, 'no readable decision'],
-    ['Runs fully covered', covered, 'of ' + analysis.coverage.length + ' runs']
-  ];
-  const host = document.getElementById('comparison-tiles');
-  host.replaceChildren();
-  tiles.forEach(function (row) {
-    const tile = el('div', 'tile');
-    tile.appendChild(el('div', 'name', row[0]));
-    tile.appendChild(el('div', 'value', row[1]));
-    tile.appendChild(el('div', 'denominator', row[2]));
-    host.appendChild(tile);
-  });
+    ['Unresolved pairs', counts.unresolved, 'no readable decision']
+  ]);
 
-  const pairColumns = [
-    { label: 'Case', render: function (r) { return r.case_id; } },
-    { label: 'Baseline choice', render: function (r) { return r.baseline_option; } },
-    { label: 'Contrast choice', render: function (r) { return r.contrast_option; } },
-    { label: 'Verdict', render: function (r) { return badge(r.verdict, r.verdict); } },
-    { label: 'Reason', wrap: true, render: function (r) { return r.reason; } }
-  ];
-  table('framing-table', pairColumns, analysis.framing_pairs, {
+  table('framing-table', PAIR_COLUMNS, analysis.framing_pairs, {
     empty: 'No framing-only pair could be formed from these records.'
   });
-  table('correction-table', pairColumns, analysis.correction_pairs, {
+  table('correction-table', PAIR_COLUMNS, analysis.correction_pairs, {
     empty: 'No correction-arm attempt was recorded.'
   });
 
@@ -178,36 +192,48 @@ function renderComparison(data) {
     });
     excluded.appendChild(list);
   }
+}
 
-  const notesHost = el('div');
-  notesHost.appendChild(el('h3', null, 'How these numbers are counted'));
-  const notes = el('ul', 'rubric');
-  analysis.notes.forEach(function (note) { notes.appendChild(el('li', null, note)); });
-  notesHost.appendChild(notes);
-  excluded.appendChild(notesHost);
-
-  const armColumns = [
+function renderArms(data) {
+  table('arms-table', [
     { label: 'Arm', render: function (r) { return r.arm; } },
     { label: 'Attempts', numeric: true, render: function (r) { return r.attempts; } },
     { label: 'Readable decisions', numeric: true, render: function (r) { return r.decisions; } },
     { label: 'Unresolved', numeric: true, render: function (r) { return r.unresolved; } },
     { label: 'Failures', numeric: true, render: function (r) { return r.failure_total; } },
     { label: 'Failure kinds', wrap: true, render: function (r) {
-        const kinds = Object.keys(r.failures);
-        return kinds.length ? kinds.map(function (k) { return k + ': ' + r.failures[k]; }).join(', ') : 'none';
+        const kinds = Object.keys(r.failures).sort();
+        if (!kinds.length) return '—';
+        const host = el('span', 'legend');
+        kinds.forEach(function (kind) {
+          host.appendChild(badge(kind + ' × ' + r.failures[kind], OUTCOME_CLASS[kind] || 'neutral'));
+        });
+        return host;
       } }
-  ];
-  const armsHost = el('div');
-  armsHost.appendChild(el('h3', null, 'Per-arm counts'));
-  const armTable = el('table');
-  armTable.id = 'arms-table';
-  const scroll = el('div', 'table-scroll');
-  scroll.appendChild(armTable);
-  armsHost.appendChild(scroll);
-  excluded.appendChild(armsHost);
-  table('arms-table', armColumns, analysis.arms, {});
+  ], data.analysis.arms, { empty: 'No arm recorded an attempt.' });
+}
 
-  const coverageColumns = [
+function renderCoverage(data) {
+  const analysis = data.analysis;
+
+  /* Run-level figures come from analysis.coverage, which the runner computes.
+   * The design's "readable / failures / unresolved" run totals have no export
+   * field; summing the per-arm table here would be this page inventing a
+   * metric, so the per-arm pane reports those instead. */
+  const runs = analysis.coverage;
+  const registered = runs.length === 1 ? runs[0].registered : 'see table';
+  const definitive = runs.length === 1 ? runs[0].definitive : 'see table';
+  const pending = runs.length === 1 ? runs[0].pending.length : 'see table';
+  const coveredRuns = runs.filter(function (row) { return row.covered; }).length;
+
+  tiles('coverage-tiles', [
+    ['Runs fully covered', coveredRuns, 'of ' + runs.length + ' runs'],
+    ['Registered attempts', registered, runs.length === 1 ? 'in this run' : 'per run'],
+    ['Definitive outcomes', definitive, runs.length === 1 ? 'of ' + registered : 'per run'],
+    ['Pending attempts', pending, 'fate not recorded']
+  ]);
+
+  table('coverage-table', [
     { label: 'Run', render: function (r) { return r.run_id; } },
     { label: 'Registered', numeric: true, render: function (r) { return r.registered; } },
     { label: 'Definitive', numeric: true, render: function (r) { return r.definitive; } },
@@ -215,25 +241,28 @@ function renderComparison(data) {
         return badge(r.covered ? 'covered' : 'incomplete', r.covered ? 'stable' : 'unresolved');
       } },
     { label: 'Pending attempts', wrap: true, render: function (r) {
-        return r.pending.length ? r.pending.join(', ') : 'none';
+        if (!r.pending.length) return 'none';
+        const host = el('span');
+        r.pending.forEach(function (id, index) {
+          if (index) host.appendChild(el('span', null, ', '));
+          host.appendChild(mono(id));
+        });
+        return host;
       } }
-  ];
-  const coverageHost = el('div');
-  coverageHost.appendChild(el('h3', null, 'Coverage — not task success'));
-  coverageHost.appendChild(el('p', 'pane-note',
-    'Coverage asks whether every registered attempt reached a definitive outcome. A fully recorded failure is covered; an empty run is vacuously covered.'));
-  const coverageTable = el('table');
-  coverageTable.id = 'coverage-table';
-  const coverageScroll = el('div', 'table-scroll');
-  coverageScroll.appendChild(coverageTable);
-  coverageHost.appendChild(coverageScroll);
-  excluded.appendChild(coverageHost);
-  table('coverage-table', coverageColumns, analysis.coverage, {});
+  ], runs, { empty: 'No run was registered.' });
+
+  const notes = document.getElementById('counting-notes');
+  notes.replaceChildren();
+  analysis.notes.forEach(function (note) { notes.appendChild(el('li', null, note)); });
 }
 
 function renderCases(data) {
   const host = document.getElementById('cases');
   host.replaceChildren();
+  if (!data.cases.length) {
+    host.appendChild(el('p', 'detail-empty', 'This export carries no case.'));
+    return;
+  }
   data.cases.forEach(function (item) {
     const card = el('div', 'case');
     const head = el('div', 'case-head');
@@ -242,12 +271,15 @@ function renderCases(data) {
     card.appendChild(head);
 
     const body = el('div', 'case-body');
-    body.appendChild(el('h3', null, 'Rubric: ' + item.rubric.id));
-    const rubric = el('ul', 'rubric');
-    item.rubric.requirements.forEach(function (line) {
-      rubric.appendChild(el('li', null, line));
+
+    /* The export has carried the option vocabulary all along; the page did not
+     * show it, so a reader could not tell what the model was choosing between. */
+    body.appendChild(el('h3', null, 'Options — ' + item.options.length + ' offered'));
+    const options = el('div', 'options-row');
+    item.options.forEach(function (option) {
+      options.appendChild(badge(option.id + ' · ' + option.label, 'neutral'));
     });
-    body.appendChild(rubric);
+    body.appendChild(options);
 
     body.appendChild(el('h3', null,
       'Evidence — ' + item.relevant_count + ' declared relevant, ' +
@@ -258,26 +290,71 @@ function renderCases(data) {
     evidenceScroll.appendChild(evidenceTable);
     body.appendChild(evidenceScroll);
 
-    body.appendChild(el('h3', null, 'Condition matrix'));
-    const conditionTable = el('table');
-    conditionTable.id = 'conditions-' + item.id;
-    const conditionScroll = el('div', 'table-scroll');
-    conditionScroll.appendChild(conditionTable);
-    body.appendChild(conditionScroll);
+    body.appendChild(el('h3', null, 'Rubric: ' + item.rubric.id));
+    const rubric = el('ul', 'rubric');
+    item.rubric.requirements.forEach(function (line) {
+      rubric.appendChild(el('li', null, line));
+    });
+    body.appendChild(rubric);
+
     card.appendChild(body);
     host.appendChild(card);
 
     table('evidence-' + item.id, [
+      { label: 'Item', render: function (r) { return mono(r.id); } },
       { label: 'Relevance', render: function (r) {
           return badge(r.relevant ? 'relevant' : 'irrelevant', r.relevant ? 'stable' : 'neutral');
         } },
       { label: 'Claim', wrap: true, render: function (r) { return r.claim; } },
       { label: 'Source', wrap: true, render: function (r) { return r.source; } },
       { label: 'Authority', wrap: true, render: function (r) { return r.source_authority; } }
-    ], item.evidence, { caption: 'Relevance is declared in advance; source authority is preserved, not stripped.' });
+    ], item.evidence, {
+      caption: 'Relevance is declared in advance; source authority is preserved, not stripped.',
+      empty: 'This case declares no evidence item.'
+    });
+  });
+}
+
+/* prompt_sha256 is recorded per attempt, not per condition. Looking it up is a
+ * projection of an exported field; it is not a computed measurement. The value
+ * stays unknown while prompt rendering is an unapproved seam. */
+function conditionPromptHash(attempts, conditionId) {
+  const seen = [];
+  attempts.forEach(function (row) {
+    if (row.condition_id !== conditionId) return;
+    const value = row.prompt_sha256;
+    if (value === null || value === undefined || value === '') return;
+    if (seen.indexOf(value) === -1) seen.push(value);
+  });
+  if (!seen.length) return 'unknown';
+  if (seen.length > 1) return 'mixed';
+  return seen[0];
+}
+
+function renderConditions(data) {
+  const host = document.getElementById('condition-sets');
+  host.replaceChildren();
+  if (!data.cases.length) {
+    host.appendChild(el('p', 'detail-empty', 'This export carries no case, so no condition was expanded.'));
+    return;
+  }
+  data.cases.forEach(function (item) {
+    const wrap = el('div');
+    wrap.appendChild(el('h3', null,
+      item.id + ' — ' + item.conditions.length + ' conditions'));
+    const conditionTable = el('table');
+    conditionTable.id = 'conditions-' + item.id;
+    const scroll = el('div', 'table-scroll');
+    scroll.appendChild(conditionTable);
+    wrap.appendChild(scroll);
+    wrap.appendChild(el('p', 'detail-empty',
+      'Prompt hashes stay unknown until prompt rendering is approved. The ' +
+      'runner records the hash on an attempt, so this column reads the ' +
+      'attempts recorded for each condition.'));
+    host.appendChild(wrap);
 
     table('conditions-' + item.id, [
-      { label: 'Condition', render: function (r) { return r.id; } },
+      { label: 'Condition', render: function (r) { return mono(r.id); } },
       { label: 'Arm', render: function (r) { return r.arm; } },
       { label: 'Changes evidence', render: function (r) {
           return el('span', 'flag' + (r.changes_evidence ? ' on' : ''), r.changes_evidence ? 'yes' : 'no');
@@ -287,12 +364,44 @@ function renderCases(data) {
         } },
       { label: 'Confound reason', wrap: true, render: function (r) {
           return r.confounded ? r.confound_reason : '—';
+        } },
+      { label: 'Prompt sha256', numeric: true, render: function (r) {
+          return conditionPromptHash(data.attempts, r.id);
         } }
     ], item.conditions, { empty: 'No conditions expanded for this case.' });
   });
 }
 
+/* ---------- attempts ---------- */
+
+let attemptState = { records: [], arm: ALL, outcome: ALL, selected: null };
+
+function uniqueSorted(values) {
+  const seen = [];
+  values.forEach(function (value) {
+    if (seen.indexOf(value) === -1) seen.push(value);
+  });
+  return seen.sort();
+}
+
+function fillSelect(id, values, allLabel) {
+  const node = document.getElementById(id);
+  node.replaceChildren();
+  const first = el('option', null, allLabel);
+  first.value = ALL;
+  node.appendChild(first);
+  values.forEach(function (value) {
+    const option = el('option', null, value);
+    option.value = value;
+    node.appendChild(option);
+  });
+}
+
 function renderAttempts(data) {
+  attemptState = { records: data.attempts, arm: ALL, outcome: ALL, selected: null };
+
+  /* The legend is a tally of every record in the export, shown so the outcome
+   * vocabulary is visible. The filter below never narrows it. */
   const legend = document.getElementById('outcome-legend');
   legend.replaceChildren();
   const seen = {};
@@ -301,19 +410,75 @@ function renderAttempts(data) {
     legend.appendChild(badge(kind + ' × ' + seen[kind], OUTCOME_CLASS[kind] || 'neutral'));
   });
 
+  fillSelect('filter-arm', uniqueSorted(data.attempts.map(function (r) { return r.arm; })), 'All arms');
+  fillSelect('filter-outcome', uniqueSorted(data.attempts.map(function (r) { return r.outcome; })), 'All outcomes');
+
+  document.getElementById('filter-arm').addEventListener('change', function (event) {
+    attemptState.arm = event.target.value;
+    drawAttempts();
+  });
+  document.getElementById('filter-outcome').addEventListener('change', function (event) {
+    attemptState.outcome = event.target.value;
+    drawAttempts();
+  });
+  document.getElementById('filter-reset').addEventListener('click', function () {
+    attemptState.arm = ALL;
+    attemptState.outcome = ALL;
+    document.getElementById('filter-arm').value = ALL;
+    document.getElementById('filter-outcome').value = ALL;
+    drawAttempts();
+  });
+
+  drawAttempts();
+}
+
+function drawAttempts() {
+  const all = attemptState.records;
+  const rows = all.filter(function (row) {
+    return (attemptState.arm === ALL || row.arm === attemptState.arm) &&
+           (attemptState.outcome === ALL || row.outcome === attemptState.outcome);
+  });
+
+  const filtered = rows.length !== all.length;
+  document.getElementById('filter-count').textContent = filtered
+    ? 'showing ' + rows.length + ' of ' + all.length + ' recorded attempts'
+    : 'showing all ' + all.length + ' recorded attempts';
+
   table('attempts-table', [
-    { label: 'Attempt', render: function (r) { return r.attempt_id; } },
+    { label: 'Attempt', render: function (r) {
+        const button = el('button', 'attempt-pick', r.attempt_id);
+        button.type = 'button';
+        button.setAttribute('aria-controls', 'attempt-detail');
+        button.setAttribute('aria-pressed', String(attemptState.selected === r.attempt_id));
+        button.addEventListener('click', function () {
+          attemptState.selected = r.attempt_id;
+          drawAttempts();
+          renderDetail(r);
+          document.getElementById('attempt-detail').focus();
+        });
+        return button;
+      } },
     { label: 'Arm', render: function (r) { return r.arm; } },
+    { label: 'Condition', render: function (r) { return mono(r.condition_id); } },
     { label: 'Outcome', render: function (r) {
         return badge(r.outcome, OUTCOME_CLASS[r.outcome] || 'neutral');
       } },
-    { label: 'Choice', render: function (r) { return r.option_id; } },
-    { label: 'Correctness', render: function (r) { return r.correctness; } },
+    { label: 'Choice', render: function (r) { return mono(r.option_id); } },
+    { label: 'Correctness', render: function (r) {
+        /* Readability and correctness are different questions. A readable
+         * decision whose correctness was never graded says so. */
+        const value = show(r.correctness);
+        return badge(value, value === 'unknown' ? 'neutral' : 'decision');
+      } },
     { label: 'Site', render: function (r) { return r.provenance ? r.provenance.execution_site : null; } },
     { label: 'Unmeasured', numeric: true, render: function (r) { return r.unknown.length; } }
-  ], data.attempts, {
-    empty: 'No attempts recorded.',
-    onSelect: renderDetail
+  ], rows, {
+    empty: filtered
+      ? 'No recorded attempt matches these filters. Clear them to see all ' + all.length + '.'
+      : 'No attempts recorded.',
+    rowClass: function (r) {
+      return attemptState.selected === r.attempt_id ? 'selectable selected' : 'selectable';
+    }
   });
 }
 
@@ -333,9 +498,26 @@ function renderDetail(record) {
   raw.appendChild(el('pre', null, show(record.raw_output)));
   raw.appendChild(el('h4', null, 'Received explanation'));
   raw.appendChild(el('pre', null, show(record.received_explanation)));
+  raw.appendChild(el('p', 'pane-note',
+    'A stated explanation is received text. It is not evidence about the ' +
+    'model’s internal computation.'));
   body.appendChild(raw);
 
   const signal = el('div');
+  signal.appendChild(el('h4', null, 'Outcome and grading'));
+  const verdictList = el('dl', 'kv');
+  [
+    ['outcome', record.outcome],
+    ['option_id', record.option_id],
+    ['correctness', record.correctness],
+    ['prompt_sha256', record.prompt_sha256]
+  ].forEach(function (pair) {
+    verdictList.appendChild(el('dt', null, pair[0]));
+    const value = show(pair[1]);
+    verdictList.appendChild(el('dd', value === 'unknown' ? 'unknown' : null, value));
+  });
+  signal.appendChild(verdictList);
+
   signal.appendChild(el('h4', null, 'Parse signal'));
   const signalList = el('dl', 'kv');
   Object.keys(record.parse_signal).sort().forEach(function (key) {
@@ -365,8 +547,7 @@ function renderDetail(record) {
   Object.keys(record.provenance || {}).sort().forEach(function (key) {
     const value = record.provenance[key];
     provList.appendChild(el('dt', null, key));
-    const dd = el('dd', value === null ? 'unknown' : null, show(value));
-    provList.appendChild(dd);
+    provList.appendChild(el('dd', value === null ? 'unknown' : null, show(value)));
   });
   provenance.appendChild(provList);
   body.appendChild(provenance);
@@ -394,6 +575,11 @@ function renderDetail(record) {
 function renderBoundaries(data) {
   const host = document.getElementById('boundary-grid');
   host.replaceChildren();
+  if (!data.boundaries.length) {
+    host.appendChild(el('p', 'detail-empty',
+      'This export carries no boundary statement. Treat that as missing, not as an absence of limits.'));
+    return;
+  }
   data.boundaries.forEach(function (item) {
     const node = el('div', 'boundary');
     node.appendChild(el('div', 'title', item.title));
@@ -403,14 +589,93 @@ function renderBoundaries(data) {
   });
 }
 
+/* A structurally valid export that recorded nothing must say so, rather than
+ * presenting empty panes that look like a finding. */
+function renderEmptyState(data) {
+  const node = document.getElementById('empty-state');
+  const gaps = [];
+  if (!data.attempts.length) gaps.push('no attempt was recorded');
+  if (!data.cases.length) gaps.push('no case is present');
+  if (!data.analysis.framing_pairs.length) gaps.push('no framing-only pair could be formed');
+  if (!gaps.length) {
+    node.hidden = true;
+    return;
+  }
+  node.hidden = false;
+  node.replaceChildren();
+  node.appendChild(el('strong', null, 'This export is readable but incomplete. '));
+  node.appendChild(el('span', null,
+    gaps.join('; ') + '. The panes below report that absence; they do not report a result.'));
+}
+
+/* ---------- theme ---------- */
+
+const THEME_KEY = 'lantern-theme';
+
+function applyTheme(choice) {
+  const root = document.documentElement;
+  if (choice === 'light' || choice === 'dark') {
+    root.setAttribute('data-theme', choice);
+  } else {
+    root.removeAttribute('data-theme');
+  }
+}
+
+function setUpTheme() {
+  let stored = null;
+  try {
+    stored = window.localStorage.getItem(THEME_KEY);
+  } catch (error) {
+    stored = null;
+  }
+  const choice = (stored === 'light' || stored === 'dark') ? stored : 'auto';
+  applyTheme(choice);
+  const inputs = document.querySelectorAll('input[name="theme"]');
+  Array.prototype.forEach.call(inputs, function (input) {
+    input.checked = input.value === choice;
+    input.addEventListener('change', function () {
+      if (!input.checked) return;
+      applyTheme(input.value);
+      try {
+        if (input.value === 'auto') {
+          window.localStorage.removeItem(THEME_KEY);
+        } else {
+          window.localStorage.setItem(THEME_KEY, input.value);
+        }
+      } catch (error) {
+        /* A viewer with storage denied still gets the theme for this visit. */
+      }
+    });
+  });
+}
+
+/* ---------- section nav ---------- */
+
+function setUpNav() {
+  const links = document.querySelectorAll('.section-nav a');
+  const mark = function (hash) {
+    Array.prototype.forEach.call(links, function (link) {
+      link.classList.toggle('here', link.hash === hash);
+    });
+  };
+  Array.prototype.forEach.call(links, function (link) {
+    link.addEventListener('click', function () { mark(link.hash); });
+  });
+  if (window.location.hash) mark(window.location.hash);
+}
+
 function render(data) {
   const missing = FIELDS.filter(function (name) { return !(name in data); });
   if (missing.length) {
     throw new Error('export is missing field(s): ' + missing.join(', '));
   }
   renderMasthead(data);
+  renderEmptyState(data);
   renderComparison(data);
+  renderArms(data);
+  renderCoverage(data);
   renderCases(data);
+  renderConditions(data);
   renderAttempts(data);
   renderBoundaries(data);
 }
@@ -423,13 +688,26 @@ function fail(message) {
   node.appendChild(el('span', null, message));
 }
 
+/* A structural problem must surface on the page, not only in the console. */
+function renderOrFail(data) {
+  try {
+    render(data);
+    document.getElementById('load-error').hidden = true;
+  } catch (error) {
+    fail(String(error && error.message ? error.message : error));
+  }
+}
+
 /* Two load paths. fetch() works over http; a file:// page is blocked from
  * fetching its own directory, so the generated data/export.js wrapper is
  * loaded by <script> instead. Both carry the same bytes and the checker
  * verifies they agree. */
 function load() {
+  setUpTheme();
+  setUpNav();
+
   if (window.LANTERN_EXPORT) {
-    render(window.LANTERN_EXPORT);
+    renderOrFail(window.LANTERN_EXPORT);
     return;
   }
   fetch('data/export.json')
@@ -437,14 +715,13 @@ function load() {
       if (!response.ok) throw new Error('HTTP ' + response.status);
       return response.json();
     })
-    .then(render)
+    .then(renderOrFail)
     .catch(function () {
       const script = document.createElement('script');
       script.src = 'data/export.js';
       script.onload = function () {
         if (window.LANTERN_EXPORT) {
-          document.getElementById('load-error').hidden = true;
-          render(window.LANTERN_EXPORT);
+          renderOrFail(window.LANTERN_EXPORT);
         } else {
           fail('data/export.js loaded but defined no export. Regenerate with ' +
                '`python3 -m runner.cli export`.');
