@@ -132,7 +132,6 @@ def check_seams(errors: list[str], counts: Counter) -> None:
     condition = expand(case.id)[0]
 
     seams = (
-        ("runner.prompts.render", lambda: prompts.render(case, condition)),
         ("runner.parsing.parse", lambda: parse("text", case)),
         ("runner.parsing.grade", lambda: grade(None, case)),
         ("runner.models.UnapprovedAdapter.generate",
@@ -157,6 +156,7 @@ def check_seams(errors: list[str], counts: Counter) -> None:
 
     implemented = (
         ("runner.prompts.digest", lambda: prompts.digest("x")),
+        ("runner.prompts.render", lambda: prompts.render(case, condition)),
         ("runner.tools.record_proposal",
          lambda: tools.record_proposal("example", "{}")),
     )
@@ -690,15 +690,38 @@ class CheckerTests(unittest.TestCase):
             trace.ORACLE_CONFORMANCE = original
 
     def test_seam_check_catches_an_implemented_seam(self):
-        from runner import prompts
-        from runner.models import PromptPayload
-        original = prompts.render
-        prompts.render = lambda case, condition: PromptPayload("x", "y", ())
+        from runner import parsing
+        original = parsing.parse
+        parsing.parse = lambda raw, case: None
         try:
             errors: list[str] = []
             check_seams(errors, Counter())
             self.assertTrue(
                 any("returned a value instead of refusing" in e for e in errors),
+                errors,
+            )
+        finally:
+            parsing.parse = original
+
+    def test_seam_check_catches_an_implemented_callable_that_refuses(self):
+        """The mirror guard: a promoted seam must not quietly start refusing.
+
+        Without this, moving a function from `seams` to `implemented` would be
+        checked in one direction only, and a regression that restored the
+        `NotImplementedError` would read as a clean lane.
+        """
+        from runner import prompts
+        original = prompts.render
+
+        def refuse(case, condition):
+            raise NotImplementedError("regressed")
+
+        prompts.render = refuse
+        try:
+            errors: list[str] = []
+            check_seams(errors, Counter())
+            self.assertTrue(
+                any("documented as implemented but refused" in e for e in errors),
                 errors,
             )
         finally:

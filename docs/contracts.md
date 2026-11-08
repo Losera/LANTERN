@@ -29,18 +29,26 @@ plausible data is indistinguishable from a result once it reaches the export.
 | `runner/export.py` | Implemented | The presentation projection |
 | `runner/models.py` | Mixed | `Provenance` implemented; the adapter is a seam |
 | `runner/tools.py` | Mixed | Proposal recording implemented; execution is a seam |
-| `runner/prompts.py` | Seam | Prompt rendering; `digest` is implemented |
+| `runner/prompts.py` | Implemented | Prompt rendering and the prompt digest |
 | `runner/parsing.py` | Seam | Reading output and grading it |
 
 The seams and what each one waits on:
 
 | Seam | Blocked on |
 | --- | --- |
-| `prompts.render` | Rubric wording, cue inventory, evidence-ordering policy |
 | `parsing.parse` | Option vocabulary, refusal and truncation criteria |
 | `parsing.grade` | The agreed rubric |
 | `models.UnapprovedAdapter.generate` | Model, revision, environment, generation settings |
 | `tools.ToolRegistry.execute` | Tool contract, result format, identifier scheme |
+
+`prompts.render` is no longer a seam: it returns a `PromptPayload` and the
+offline lane now checks that it does. Implemented is not the same as correct.
+At `6aa11a6` the function does not read its `condition` argument, so all five
+arms of a case render byte-identical text under one digest, and the options are
+rendered by label while the rubric asks for an option identifier. The lane does
+not detect either, because its seam check only establishes that implemented code
+does not refuse. Treat the independent variable as unimplemented until the
+rendering issue lands.
 
 ## Case document
 
