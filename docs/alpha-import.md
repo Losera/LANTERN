@@ -51,7 +51,7 @@ importer's successful path, not establish real parsing or task competence.
 The two required files are `batch.json` and `results.jsonl`. Outer envelope
 objects reject unexpected fields; duplicate JSON keys and non-finite JSON
 numbers are refused. This format does not change the existing runner
-attempt-record schema. The proposed model-response contract below is separate
+attempt-record schema. The approved model-response contract below is separate
 from envelope validation and is not implemented by the importer.
 
 `batch.json` has these fields:
@@ -127,6 +127,14 @@ the existing attempt schema is not extended to hold it.
 
 ## Proposed structured model response
 
+Status: Teammate A approved the strict JSON response contract and matching
+renderer acceptance on November 8, 2026, in the lead's assisting session. The
+heading is retained so existing proposal links continue to resolve. Explicit
+refusal criteria still require B's proposal under #25 and A's semantic review.
+Approval does not establish implementation, format compliance, or experiment
+readiness. See the [response-contract handoff](response-contract-handoff.md)
+for renderer acceptance and the prepared, unsent #25 launch packet.
+
 The prompt should ask for one JSON object with exactly three fields:
 
 ```json
@@ -137,8 +145,8 @@ The prompt should ask for one JSON object with exactly three fields:
 }
 ```
 
-This is a response contract for coordination with B under #8/#25 and Kai under
-#9, not a newly implemented parser. The importer continues passing the exact
+This is the approved response contract for coordination with B under #8/#25 and
+Kai under #9, not a newly implemented parser. The importer continues passing the exact
 response string to `runner.parsing.parse`; no JSON-response parser is added here.
 
 - Require one object with optional surrounding whitespace. Missing or extra
@@ -167,7 +175,7 @@ response string to `runner.parsing.parse`; no JSON-response parser is added here
   truncated when the runtime reports `token_limit`. Timeout and infrastructure
   error text are retained without interpreting them as decisions.
 
-No fields are added to the batch or result envelope for this proposal. The
+No fields are added to the batch or result envelope for this contract. The
 model's JSON object is encoded as a string inside the outer `raw_output` field.
 After local parsing, `option_id`, `mentions`, and `received_explanation` populate
 the existing attempt record. Correctness comes from grading, not the model.
