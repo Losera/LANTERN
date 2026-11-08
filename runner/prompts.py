@@ -46,18 +46,68 @@ def digest(text: str) -> str:
 
 
 def render(case: Case, condition: Condition) -> PromptPayload:
-    """SEAM: build the exact text for one case under one condition.
-
-    Raises:
-        NotImplementedError: always. The rubric wording, the cue inventory, and
-            the evidence-ordering policy are unapproved; see docs/project.md
-            "Decisions still required".
-    """
-    raise NotImplementedError(
-        "prompt rendering is a seam: the rubric wording, the relevant versus "
-        "irrelevant cue inventory, and the evidence-ordering policy are not "
-        "agreed. See docs/project.md and docs/evaluation.md 'Declare the "
-        "comparison before measuring'."
+    INCLUDE_RELEVANCY = False
+    
+    text: str = "The User presents the following question: \""
+    text += case.question + "\""
+    evidenceOrder = []
+    
+    if len(case.evidence) != 0:
+        #this looks really complicated but I do not want the prompt to contain any empty strings
+        evidenceStr: str = ""
+        for evidence in case.evidence:
+            if evidence == None: continue
+            if len(evidenceStr) != 0 and len(evidence.claim) != 0:
+                #this is a little redundant but whatever
+                evidenceStr += " The next piece of evidence is: "
+            if len(evidence.claim) == 0: continue
+            evidenceStr += evidence.claim + " "
+            evidenceOrder.append(evidence.id) #used for evidence order
+            
+            if len(evidence.source) != 0: evidenceStr += "The source is from " + evidence.source + " "
+            
+            if not INCLUDE_RELEVANCY or evidence.relevant == False: continue
+            if len(evidence.source_authority) != 0:
+                evidenceStr += "The validity of the source is as follows: " + evidence.source_authority
+            evidenceStr += "It has been deemed that this evidence is relevant."
+        if len(evidenceStr) != 0:
+            text += " The provided evidence is as follows: "
+            text += evidenceStr
+            
+    if len(case.options) != 0:
+        #same thing for the evidence, looks complicated but I just don't want empty strings
+        optionStr: str = ""
+        for option in case.options:
+            if option == None: continue
+            if len(optionStr) != 0 and len(option.label) != 0:
+                #again a little redundant but again, whatever
+                optionStr += " The next option is: "
+            if len(option.label) == 0: continue
+            optionStr += option.label + " "
+        if len(optionStr) != 0:
+            text += " The following options were provided, choose between them: "
+            text += optionStr
+            
+    rubric = case.rubric
+    if rubric != None and len(rubric.requirements) != 0:
+        rStr : str = ""
+        for r in rubric.requirements:
+            if r == None or len(r) == 0: continue
+            if len(rStr) != 0: rStr += " The following requirement is: "
+            rStr += r
+        if len(rStr) != 0:
+            text += " The following requirements are to be strictly followed: "
+            text += rStr
+            
+    #INCLUDE ANYTHING ELSE IN TEXT HERE, CASE OBJECT IS FULLY PARSED
+    PromptPayload.text = text
+    PromptPayload.sha256 = hashlib.sha256(text.encode()).hexdigest()
+    PromptPayload.evidence_order = tuple(evidenceOrder)
+    
+    return PromptPayload(
+        text=text,
+        sha256=digest(text),
+        evidence_order = tuple(evidenceOrder)
     )
 
 
