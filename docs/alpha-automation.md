@@ -48,6 +48,57 @@ The current runner has no model-execution command. This helper does not fill
 its model, prompt, parsing, or tool-execution seams. Your later job script must
 load the approved environment and invoke the reviewed inference program.
 
+## Reuse an authenticated connection
+
+If interactive SSH works but the helper's authentication fails, you can establish
+one connection manually with a terminal and reuse it for SSH and SCP. This is an
+optional workaround; it does not establish the cause of an authentication failure.
+From your local terminal, with `ALPHA_HOST` already set, run:
+
+```bash
+export ALPHA_CONTROL_DIR="$(mktemp -d /tmp/lantern-alpha-ssh.XXXXXX)"
+export ALPHA_CONTROL_PATH="$ALPHA_CONTROL_DIR/socket"
+ssh -M -S "$ALPHA_CONTROL_PATH" -o ControlPersist=10m -tt -- "$ALPHA_HOST" \
+  'printf "Shared connection established\n"'
+```
+
+Complete authentication yourself. The private temporary directory holds the local
+control socket. The connection stays available for ten minutes after the last
+client disconnects. These commands submit no job and change no SSH configuration.
+If you already established a connection using `$ALPHA_CONTROL_DIR/socket`, set
+`ALPHA_CONTROL_PATH` to that socket instead of creating another directory.
+
+Check the connection before submitting:
+
+```bash
+ssh -S "$ALPHA_CONTROL_PATH" -O check -- "$ALPHA_HOST"
+```
+
+Once the connection is established, use the helper's usual submit, status, and
+fetch commands from the same local terminal. All SSH and SCP calls receive the
+socket path, `ControlMaster=no`, and `BatchMode=yes`. The helper does not force a
+terminal for transfers or submission receipts. Password and MFA prompts are
+disabled in this mode. If the connection expires, OpenSSH may fall back to a new
+connection using noninteractive authentication; it cannot prompt for MFA.
+If a command fails, inspect the error and reconnect manually as needed. A failed
+submission still requires receipt/queue inspection before any resubmission.
+
+Use an absolute socket path so changing directories does not select another
+socket. Spaces are supported; double quotes, backslashes, and control characters are
+rejected. Keep the same `ALPHA_HOST` used to establish the connection. An unset
+or empty `ALPHA_CONTROL_PATH` preserves the helper's original authentication.
+
+When finished with this connection, close it and clear the optional setting:
+
+```bash
+ssh -S "$ALPHA_CONTROL_PATH" -O exit -- "$ALPHA_HOST"
+unset ALPHA_CONTROL_PATH
+```
+
+Agents must leave authentication, transfers, and job operations to the human
+under issue #10's operating rules. Offline checks do not validate this workaround
+against Alpha's MFA or SCP service.
+
 ## Status and retrieval
 
 Replace the sample job ID below with your returned ID. If the receipt includes
