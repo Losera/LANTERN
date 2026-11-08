@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
 import tempfile
@@ -132,6 +133,31 @@ class ExecutorTests(unittest.TestCase):
         self.assertEqual(rows[0]["status"], "error")
         self.assertTrue(all(r["status"] == "not_started" for r in rows[1:]))
 
+    def test_signal_preserves_completed_worker_receipt(self):
+        def interrupted(command, *args):
+            self.complete_worker(command, *args)
+            raise executor.ExecutionStopped("TERM after receipt was saved")
+        self.assertEqual(self.supervise(interrupted), 1)
+        rows = self.results()
+        self.assertEqual(rows[0]["status"], "error")
+        self.assertEqual(rows[0]["termination_reason"], "unknown")
+        self.assertEqual(rows[0]["raw_output"], "synthetic raw output")
+        self.assertEqual(rows[0]["provenance"]["prompt_tokens"], 10)
+        self.assertEqual(rows[0]["provenance"]["completion_tokens"], 1)
+        self.assertTrue(all(r["status"] == "not_started" for r in rows[1:]))
+
+    def test_signal_with_malformed_receipt_still_accounts_for_work(self):
+        def interrupted(*args):
+            (self.root / "worker-00.json").write_text("{")
+            raise executor.ExecutionStopped("TERM with unreadable receipt")
+        self.assertEqual(self.supervise(interrupted), 1)
+        rows = self.results()
+        self.assertEqual(len(rows), 20)
+        self.assertEqual(rows[0]["status"], "error")
+        self.assertIsNone(rows[0]["raw_output"])
+        self.assertIn("TERM", rows[0]["errors"][0])
+        self.assertTrue(all(r["status"] == "not_started" for r in rows[1:]))
+
     def test_malformed_worker_receipt_is_attempted_error(self):
         def broken(*args):
             (self.root / "worker-00.json").write_text("{")
@@ -171,6 +197,55 @@ class ExecutorTests(unittest.TestCase):
         pid = int(pidfile.read_text())
         with self.assertRaises(ProcessLookupError):
             os.kill(pid, 0)
+
+    def test_signal_during_spawn_kills_and_reaps_child(self):
+        original_popen = executor.subprocess.Popen
+        for signum in (signal.SIGTERM, signal.SIGINT):
+            with self.subTest(signal=signum):
+                children = []
+                previous_handler = signal.signal(signum, executor.stop)
+                def interrupted_spawn(*args, **kwargs):
+                    process = original_popen(*args, **kwargs)
+                    children.append(process)
+                    # Real signal after fork/exec, before Popen returns its
+                    # handle to bounded_process. The child is not signaled.
+                    os.kill(os.getpid(), signum)
+                    return process
+                try:
+                    with (self.root / f"spawn-{signum}.out").open("w") as stream, \
+                         patch.object(executor.subprocess, "Popen", side_effect=interrupted_spawn):
+                        with self.assertRaises(executor.ExecutionStopped):
+                            executor.bounded_process([sys.executable, "-c", "import time; time.sleep(30)"],
+                                                     stream, stream, 60)
+                    self.assertEqual(len(children), 1)
+                    self.assertIsNotNone(children[0].poll(), "Shutdown stranded a live worker")
+                    self.assertEqual(children[0].returncode, -signal.SIGKILL)
+                    self.assertIs(signal.getsignal(signum), executor.stop)
+                finally:
+                    signal.signal(signum, previous_handler)
+                    for process in children:
+                        if process.poll() is None:
+                            process.kill()
+                        process.wait()
+
+    def test_failed_spawn_restores_signal_handlers(self):
+        handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
+        with patch.object(executor.subprocess, "Popen", side_effect=OSError("spawn failed")), \
+             patch.object(executor.os, "killpg") as kill:
+            with self.assertRaisesRegex(OSError, "spawn failed"):
+                executor.bounded_process([], None, None, 60)
+        kill.assert_not_called()
+        for sig, handler in handlers.items():
+            self.assertEqual(signal.getsignal(sig), handler)
+
+    def test_spawn_deferral_does_not_block_worker_signals(self):
+        handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
+        with (self.root / "worker-signal.out").open("w") as stream:
+            code = executor.bounded_process([sys.executable, "-c",
+                "import os,signal; os.kill(os.getpid(), signal.SIGTERM)"], stream, stream, 5)
+        self.assertEqual(code, -signal.SIGTERM)
+        for sig, handler in handlers.items():
+            self.assertEqual(signal.getsignal(sig), handler)
 
 
 if __name__ == "__main__":

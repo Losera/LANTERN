@@ -201,6 +201,51 @@ class BatchTests(unittest.TestCase):
         self.assertEqual(summary["attempted"], 19)
         self.assertFalse(summary["gate_passed"])
 
+    def test_inconsistent_timing_refuses_before_dataset_or_export_writes(self):
+        self.prepare()
+        self.submit()
+        remote = self.remote_results()
+        metrics = batch.read_json(remote / "execution-summary.json")
+        metrics["attempted"] = 19
+        batch.atomic_json(remote / "execution-summary.json", metrics)
+        before = {str(p.relative_to(remote)): p.read_bytes() for p in remote.rglob("*") if p.is_file()}
+        with self.assertRaisesRegex(batch.BatchError, "inconsistent execution timing"):
+            batch.resume(self.run_dir)
+        self.assertFalse((self.run_dir / "dataset").exists())
+        self.assertEqual(batch.load_state(self.run_dir)["phase"], "fetched")
+        self.assertEqual(before, {str(p.relative_to(remote)): p.read_bytes() for p in remote.rglob("*") if p.is_file()})
+
+    def test_nonfinite_elapsed_time_refuses_before_dataset_writes(self):
+        self.prepare()
+        self.submit()
+        remote = self.remote_results()
+        (remote / "execution-summary.json").write_text('{"elapsed_seconds":1e999,"attempted":20}\n')
+        with self.assertRaisesRegex(batch.BatchError, "inconsistent execution timing"):
+            batch.resume(self.run_dir)
+        self.assertFalse((self.run_dir / "dataset").exists())
+
+    def test_inconsistent_timing_preserves_existing_records_and_export(self):
+        self.prepare()
+        self.submit()
+        remote = self.remote_results()
+        dataset = self.run_dir / "dataset"
+        real_append = alpha_import.recording.append_many
+        def partial(path, rows):
+            real_append(path, rows[:3])
+            raise OSError("synthetic interrupted append")
+        with patch.object(alpha_import.recording, "append_many", side_effect=partial):
+            with self.assertRaises(alpha_import.ImportError):
+                alpha_import.import_bundle(remote, cases_dir=remote / "cases",
+                                          attempts_path=dataset / "attempts.jsonl")
+        (dataset / "export.json").write_text("previous export must remain untouched\n")
+        before = {p.name: p.read_bytes() for p in dataset.iterdir()}
+        metrics = batch.read_json(remote / "execution-summary.json")
+        metrics["attempted"] = 19
+        batch.atomic_json(remote / "execution-summary.json", metrics)
+        with self.assertRaisesRegex(batch.BatchError, "inconsistent execution timing"):
+            batch.resume(self.run_dir)
+        self.assertEqual(before, {p.name: p.read_bytes() for p in dataset.iterdir()})
+
     def test_runtime_failures_override_valid_looking_output(self):
         self.prepare()
         self.submit()

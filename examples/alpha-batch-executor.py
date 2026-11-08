@@ -192,17 +192,47 @@ def stop(signum, frame):
 
 
 def bounded_process(command, stdout, stderr, timeout):
-    """Kill and reap the entire worker process group before returning/raising."""
-    process = subprocess.Popen(command, stdout=stdout, stderr=stderr, start_new_session=True)
+    """Supervise from the main thread; kill/reap a worker before unwinding."""
+    process = None
+    pending = []
+    handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
+
+    def defer(signum, frame):
+        pending.append(signum)
+
+    def restore_handlers():
+        for sig, handler in handlers.items():
+            signal.signal(sig, handler)
+
     try:
+        # A raising handler inside Popen can lose the newly created child's
+        # handle. Defer just that exception until assignment is complete.
+        # No signal mask is changed or inherited by the worker.
+        for sig in handlers:
+            signal.signal(sig, defer)
+        process = subprocess.Popen(command, stdout=stdout, stderr=stderr, start_new_session=True)
+        restore_handlers()
+        if pending:
+            raise ExecutionStopped(f"Supervisor received signal {pending[0]} during worker launch")
         return process.wait(timeout=timeout)
     except BaseException:
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        process.wait()
+        if process is not None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait()
         raise
+    finally:
+        restore_handlers()
+
+
+def worker_receipt(root, index):
+    path = root / f"worker-{index:02d}.json"
+    receipt = read(path) if path.exists() else {}
+    if not isinstance(receipt, dict):
+        raise ValueError("Worker receipt must be a JSON object")
+    return receipt
 
 
 def result_for(batch, attempt, status, error=None, receipt=None):
@@ -237,8 +267,8 @@ def supervise(root, model_dir):
     try:
         preflight(root, model_dir, batch)
         for index, attempt in enumerate(batch["attempts"]):
-            active_attempt = attempt
             begin = time.perf_counter()
+            active_attempt = attempt
             with (root / f"worker-{index:02d}.out").open("x") as stdout, (root / f"worker-{index:02d}.err").open("x") as stderr:
                 try:
                     rc = bounded_process([sys.executable, "-I", "-u", "-B", str(Path(__file__).resolve()),
@@ -248,12 +278,8 @@ def supervise(root, model_dir):
                     detail = None if rc == 0 else f"Worker exited {rc}; see worker-{index:02d}.err"
                 except subprocess.TimeoutExpired:
                     status, detail = "timeout", "Attempt exceeded 60 seconds including model loading"
-                except ExecutionStopped as exc:
-                    results.append(result_for(batch, attempt, "error", str(exc)))
-                    raise
             elapsed = time.perf_counter() - begin
-            path = root / f"worker-{index:02d}.json"
-            receipt = read(path) if path.exists() else {}
+            receipt = worker_receipt(root, index)
             if status == "returned" and receipt.get("stage") != "complete":
                 status, detail = "error", "Worker exited without a complete receipt"
             receipt["runtime_seconds"] = elapsed
@@ -267,7 +293,16 @@ def supervise(root, model_dir):
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
         if active_attempt is not None and len(results) <= index:
-            results.append(result_for(batch, active_attempt, "error", error))
+            try:
+                receipt = worker_receipt(root, index)
+            except (OSError, ValueError) as receipt_error:
+                error += f"; unreadable worker receipt: {receipt_error}"
+                receipt = {}
+            receipt["runtime_seconds"] = time.perf_counter() - begin
+            results.append(result_for(batch, active_attempt, "error", error, receipt))
+            timings.append(dict(attempt_id=active_attempt["attempt_id"],
+                elapsed_seconds=receipt["runtime_seconds"], load_seconds=receipt.get("load_seconds"),
+                generation_seconds=receipt.get("generation_seconds")))
     finally:
         for attempt in batch["attempts"][len(results):]:
             results.append(result_for(batch, attempt, "not_started", error or "Supervisor stopped before dispatch"))

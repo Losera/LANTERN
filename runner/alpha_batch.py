@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -302,9 +303,26 @@ def finish(run: Path, state: dict) -> dict:
     state["fetched_hashes"] = source_hashes
     atomic_json(run / "progress.json", state)
     throughput = read_json(bundle / "execution-summary.json")
-    if (type(throughput.get("elapsed_seconds")) not in (int, float)
-            or throughput["elapsed_seconds"] <= 0):
+    if not isinstance(throughput, dict):
         raise BatchError("Missing or inconsistent execution timing")
+    elapsed = throughput.get("elapsed_seconds")
+    if (type(elapsed) not in (int, float) or elapsed <= 0
+            or isinstance(elapsed, float) and not math.isfinite(elapsed)
+            or type(throughput.get("attempted")) is not int
+            or not 0 <= throughput["attempted"] <= len(batch["attempts"])):
+        raise BatchError("Missing or inconsistent execution timing")
+    result_rows = [alpha_import._json(line, f"results.jsonl:{index}")
+                   for index, line in enumerate((bundle / "results.jsonl").read_bytes().splitlines(), 1)]
+    scheduled = {attempt["attempt_id"] for attempt in batch["attempts"]}
+    # Full envelope validation remains the importer's responsibility. Only
+    # compare counts for a complete set of terminal identities; incomplete or
+    # duplicate results will be rejected by the importer before any append.
+    if (len(result_rows) == len(scheduled)
+            and all(isinstance(row, dict) and isinstance(row.get("attempt_id"), str) for row in result_rows)
+            and {row["attempt_id"] for row in result_rows} == scheduled):
+        attempted = sum(row.get("status") != "not_started" for row in result_rows)
+        if throughput["attempted"] != attempted:
+            raise BatchError("Missing or inconsistent execution timing")
     dataset = run / "dataset"
     dataset.mkdir(exist_ok=True)
     report = alpha_import.import_bundle(bundle, cases_dir=bundle / "cases",
@@ -312,6 +330,8 @@ def finish(run: Path, state: dict) -> dict:
     atomic_json(dataset / "import-report.json", report.as_dict())
     records = (list(read_attempts(dataset / "attempts.jsonl"))
                if (dataset / "attempts.jsonl").exists() else [])
+    if throughput["attempted"] != len(records):
+        raise BatchError("Dataset count differs from validated execution timing")
     cases = load_cases(bundle / "cases")
     conditions = tuple(c for case in cases for c in expand(case.id, reruns=4))
     analysis = summarize(records, conditions)
@@ -319,8 +339,6 @@ def finish(run: Path, state: dict) -> dict:
         records=records, analysis=analysis, label=("Synthetic Alpha workflow fixture"
             if batch["synthetic"] else "Alpha fixed twenty-attempt experiment")))
     decisions = sum(row["outcome"] == "decision" for row in records)
-    if throughput.get("attempted") != len(records):
-        raise BatchError("Missing or inconsistent execution timing")
     summary = dict(synthetic=batch["synthetic"], scheduled=20, attempted=len(records), decisions=decisions,
                    not_started=list(report.not_started),
                    gate_passed=len(records) == 20 and decisions >= 10,
