@@ -36,7 +36,38 @@ def digest(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+STRUCTURED_CHOICE = (
+    ' \n{"option_id": "route-north", "evidence_ids": ["ev-ridership"], '
+    '"explanation": "Synthetic received explanation"}\n'
+)
+UNKNOWN_EVIDENCE_CHOICE = (
+    '{"option_id":"route-north","evidence_ids":["ev-ridership","ev-unknown"],'
+    '"explanation":"Synthetic explanation with an unknown reference"}'
+)
+INVALID_CHOICE = '{"option_id":"not-an-option","evidence_ids":[],"explanation":""}'
+MALFORMED_RESPONSE = '{"option_id":'
+
+
 def mock_parse(raw, case):
+    # Exact fixture-to-result mapping, not a JSON parser or matching algorithm.
+    # These are assumed outputs of the separately owned parser under #9.
+    structured = {
+        STRUCTURED_CHOICE: Decision(
+            "route-north", ParseSignal(decodable=True, choice_in_rubric=True),
+            mentions=(Mention(case.evidence[0].source, False, "ev-ridership"),),
+            received_explanation="Synthetic received explanation",
+        ),
+        UNKNOWN_EVIDENCE_CHOICE: Decision(
+            "route-north", ParseSignal(decodable=True, choice_in_rubric=True),
+            mentions=(Mention(case.evidence[0].source, False, "ev-ridership"),
+                      Mention("ev-unknown", False, None)),
+            received_explanation="Synthetic explanation with an unknown reference",
+        ),
+        INVALID_CHOICE: Decision("not-an-option", ParseSignal(decodable=True)),
+        MALFORMED_RESPONSE: Decision("", ParseSignal()),
+    }
+    if raw in structured:
+        return structured[raw]
     signals = {
         "choice": ParseSignal(decodable=True, choice_in_rubric=True),
         "malformed": ParseSignal(),
@@ -69,10 +100,10 @@ class ImportTests(unittest.TestCase):
                           identity=self.identity.copy(), attempts=[], evidence=[])
         self.results = []
         for index, (status, termination, output) in enumerate([
-            ("returned", "eos", "choice"),
-            ("returned", "eos", "malformed"),
+            ("returned", "eos", STRUCTURED_CHOICE),
+            ("returned", "eos", MALFORMED_RESPONSE),
             ("returned", "eos", "refusal"),
-            ("returned", "eos", "invalid"),
+            ("returned", "eos", INVALID_CHOICE),
             ("returned", "token_limit", "partial choice"),
             ("timeout", "unknown", None),
             ("error", "unknown", "partial output before crash"),
@@ -156,6 +187,66 @@ class ImportTests(unittest.TestCase):
         report = self.run_import()
         self.assertEqual((report.appended, report.skipped), (0, 8))
         self.assertEqual(previous, self.destination.read_bytes())
+
+    def test_structured_response_preserves_raw_text_and_interpreted_fields(self):
+        self.batch["attempts"] = self.batch["attempts"][:1]
+        self.results = self.results[:1]
+        self.write()
+        before = self.snapshot()
+        self.run_import()
+        self.parser.assert_called_once_with(STRUCTURED_CHOICE, load_cases(self.cases)[0])
+        row = next(read_attempts(self.destination))
+        self.assertEqual(row["raw_output"], STRUCTURED_CHOICE)
+        self.assertEqual(row["outcome"], "decision")
+        self.assertEqual(row["option_id"], "route-north")
+        self.assertEqual(row["received_explanation"], "Synthetic received explanation")
+        self.assertEqual(row["mentions"][0]["evidence_id"], "ev-ridership")
+        self.assertFalse(row["mentions"][0]["supported"])
+        self.assertEqual(before, self.snapshot())
+        previous = self.destination.read_bytes()
+        report = self.run_import()
+        self.assertEqual((report.appended, report.skipped), (0, 1))
+        self.assertEqual(previous, self.destination.read_bytes())
+
+    def test_mocked_unknown_evidence_keeps_choice_and_unsupported_reference(self):
+        self.batch["attempts"] = self.batch["attempts"][:1]
+        self.results = self.results[:1]
+        self.results[0]["raw_output"] = UNKNOWN_EVIDENCE_CHOICE
+        self.grader.return_value = Correctness.UNKNOWN
+        self.write()
+        self.run_import()
+        row = next(read_attempts(self.destination))
+        self.assertEqual(row["raw_output"], UNKNOWN_EVIDENCE_CHOICE)
+        self.assertEqual((row["outcome"], row["option_id"]), ("decision", "route-north"))
+        self.assertEqual(row["correctness"], "unknown")
+        self.assertEqual(row["mentions"][1],
+                         dict(source="ev-unknown", supported=False, evidence_id=None))
+        self.grader.assert_called_once()
+
+    def test_mocked_malformed_and_invalid_choices_still_count(self):
+        self.batch["attempts"] = [self.batch["attempts"][1], self.batch["attempts"][3]]
+        self.results = [self.results[1], self.results[3]]
+        self.write()
+        report = self.run_import()
+        rows = list(read_attempts(self.destination))
+        self.assertEqual(report.appended, 2)
+        self.assertEqual([row["outcome"] for row in rows], ["malformed", "invalid_choice"])
+        self.assertEqual([row["raw_output"] for row in rows], [MALFORMED_RESPONSE, INVALID_CHOICE])
+        self.assertEqual(summarize(rows).attempts, 2)
+        self.grader.assert_not_called()
+
+    def test_valid_json_at_token_limit_is_truncated_without_parsing(self):
+        self.batch["attempts"] = self.batch["attempts"][:1]
+        self.results = self.results[:1]
+        self.results[0]["termination_reason"] = "token_limit"
+        self.write()
+        self.run_import()
+        row = next(read_attempts(self.destination))
+        self.assertEqual(row["outcome"], "truncated")
+        self.assertEqual(row["raw_output"], STRUCTURED_CHOICE)
+        self.assertIsNone(row["option_id"])
+        self.parser.assert_not_called()
+        self.grader.assert_not_called()
 
     def test_parser_truncation_signal_remains_visible(self):
         self.parser.side_effect = None

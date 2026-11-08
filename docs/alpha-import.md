@@ -4,6 +4,17 @@ This is the importer milestone of issue 33. It reads a complete, already-fetched
 experimental bundle and appends runner attempt records. It does not submit,
 monitor, or fetch jobs, run inference, move evidence, or install dependencies.
 
+| Artifact | Purpose |
+| --- | --- |
+| `batch.json` | Exact prompts and attempt identities prepared before execution |
+| `results.jsonl` | Raw responses and execution receipts written after attempts run |
+| Attempt dataset | Locally validated choices, evidence mentions, and explanations |
+
+The eventual workflow prepares and uploads the batch, runs the model on Alpha,
+then fetches the complete directory and imports it locally. Fetching comes after
+execution. Keeping the original inputs beside returned outputs lets the importer
+check their identities and prompt hashes without running the model again.
+
 The source directory remains the retained evidence bundle. Logs, scripts,
 submission receipts, package reports, and raw results stay there unchanged.
 Keep it in durable storage before importing; a directory under `/tmp` is not a
@@ -37,9 +48,11 @@ importer's successful path, not establish real parsing or task competence.
 
 ## Version-0 bundle contract
 
-The two required files are `batch.json` and `results.jsonl`. All objects reject
-unexpected fields; duplicate JSON keys and non-finite JSON numbers are refused.
-This new format does not change the existing runner attempt-record schema.
+The two required files are `batch.json` and `results.jsonl`. Outer envelope
+objects reject unexpected fields; duplicate JSON keys and non-finite JSON
+numbers are refused. This format does not change the existing runner
+attempt-record schema. The proposed model-response contract below is separate
+from envelope validation and is not implemented by the importer.
 
 `batch.json` has these fields:
 
@@ -101,8 +114,9 @@ Returned EOS text goes through the existing parser and grader. Token-limit
 output is truncated, not a readable choice. Unknown termination becomes an
 infrastructure error with its raw text preserved. Timeout and execution error
 retain their separate outcomes. A parser's own failure signals remain visible.
-No option, correctness, or received explanation supplied by Alpha is accepted
-as an authoritative interpretation.
+The outer result does not accept authoritative choice or correctness fields.
+The model may name its choice and explain it inside `raw_output`; these are
+received claims that still need local validation and grading.
 
 Provenance identity must match the batch. Optional existing fields may be
 omitted or null and remain explicitly unknown. Counts and seed must be
@@ -110,6 +124,103 @@ non-negative integers, numeric settings and runtime finite and non-negative,
 and `top_p` at most one. Effective settings, token counts, and timing should be
 supplied whenever measured. Original results retain the termination receipt;
 the existing attempt schema is not extended to hold it.
+
+## Proposed structured model response
+
+The prompt should ask for one JSON object with exactly three fields:
+
+```json
+{
+  "option_id": "route-north",
+  "evidence_ids": ["ev-ridership", "ev-reliability"],
+  "explanation": "The cited fictional evidence supports this recommendation."
+}
+```
+
+This is a response contract for coordination with B under #8/#25 and Kai under
+#9, not a newly implemented parser. The importer continues passing the exact
+response string to `runner.parsing.parse`; no JSON-response parser is added here.
+
+- Require one object with optional surrounding whitespace. Missing or extra
+  fields, duplicate keys, non-finite numbers, Markdown fences, surrounding prose,
+  arrays instead of an object, and wrong field types are malformed. Do not
+  extract a candidate object from prose or silently repair a response.
+- `option_id` must be a non-empty string. Match the case's option IDs exactly,
+  with no label aliases, case folding, or trimming inside the value. A
+  structurally valid response naming an unknown option is `invalid_choice`.
+- `evidence_ids` must be an array of non-empty strings. An empty array is allowed;
+  grading determines whether the explanation meets the case's requirements.
+  Preserve the supplied order and references in the original response.
+- `explanation` must be a string. An empty string remains visible for grading;
+  do not substitute an invented explanation.
+- An unknown evidence ID does not invalidate an otherwise readable choice.
+  Retain the reference as an unsupported mention, with the literal unknown ID
+  in `source` and null `evidence_id`. A known ID maps to the case evidence item,
+  but it does not by itself establish an observed successful tool result, source
+  truth, or the model's internal reasoning. The example's known mentions also
+  remain `supported: false`; do not promote citations merely for matching an ID.
+- JSON parsing failure is not a refusal signal. Explicit refusal rules remain
+  subject to #25; selecting a valid insufficient-evidence option is a choice.
+  This revision does not implement refusal detection or settle legacy free-text
+  matching rules for other response formats.
+- Execution status takes precedence over response shape. Even valid JSON is
+  truncated when the runtime reports `token_limit`. Timeout and infrastructure
+  error text are retained without interpreting them as decisions.
+
+No fields are added to the batch or result envelope for this proposal. The
+model's JSON object is encoded as a string inside the outer `raw_output` field.
+After local parsing, `option_id`, `mentions`, and `received_explanation` populate
+the existing attempt record. Correctness comes from grading, not the model.
+
+### Synthetic returned-response example
+
+This complete wire example uses a fictional format exercise, not an approved
+experiment prompt. Its `batch.json` includes response instructions and visible
+option/evidence IDs; the digest covers the exact prompt string:
+
+```json
+{
+  "format": "lantern.alpha.batch",
+  "schema_version": 0,
+  "purpose": "experimental",
+  "synthetic": true,
+  "run_id": "synthetic-structured-example",
+  "identity": {
+    "execution_site": "alpha_batch",
+    "model_id": "synthetic-model",
+    "model_revision": "synthetic-revision",
+    "harness": "synthetic-runtime",
+    "harness_version": "fixture-0"
+  },
+  "attempts": [{
+    "attempt_id": "synthetic-structured-attempt-0",
+    "case_id": "campus-transport",
+    "condition_id": "campus-transport:baseline:0",
+    "arm": "baseline",
+    "operation_id": "campus-transport:baseline:0",
+    "prompt": "Synthetic response-format exercise, not an experiment. Choose from route-north, route-west, insufficient. Evidence ev-ridership: Route North has 1840 evening riders per week; Route West has 1120. Return exactly one JSON object with option_id (a listed option ID), evidence_ids (an array of cited evidence IDs), and explanation (a string). Do not include Markdown fences or surrounding prose.",
+    "prompt_sha256": "546e2206502953298e5cd27664c5e75f365bb136948ce6dcf4d71d205d5ff0f9"
+  }],
+  "evidence": []
+}
+```
+
+Its `results.jsonl` has this single line. Escaped quotes belong to the outer JSON
+encoding; the decoded `raw_output` is the exact model-response string:
+
+```json
+{"attempt_id":"synthetic-structured-attempt-0","prompt_sha256":"546e2206502953298e5cd27664c5e75f365bb136948ce6dcf4d71d205d5ff0f9","status":"returned","termination_reason":"eos","raw_output":"{\"option_id\":\"route-north\",\"evidence_ids\":[\"ev-ridership\"],\"explanation\":\"The fictional ridership figures favor Route North.\"}","provenance":{"execution_site":"alpha_batch","model_id":"synthetic-model","model_revision":"synthetic-revision","harness":"synthetic-runtime","harness_version":"fixture-0"},"errors":[]}
+```
+
+After the approved parser and grader are available, the expected attempt has
+`outcome: "decision"`, `option_id: "route-north"`, a mention resolving to
+`ev-ridership` with `supported: false`, and `received_explanation` equal to the
+returned explanation. It retains `synthetic: true` and the raw string verbatim.
+Correctness is rubric-dependent; this example establishes no correctness value.
+At the current base the real parser refuses this example. Mocked tests cover
+transport of parser results, not enforcement of the proposed response contract.
+
+### Runnable synthetic failure example
 
 This minimal `batch.json` illustrates one synthetic attempt against the existing
 fictional case. It is a format example, not approved Alpha experiment input:
