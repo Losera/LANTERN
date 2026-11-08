@@ -7,3 +7,6 @@ __pycache__/
 # docs/status.md and in the pull request, not in an untracked JSON file that
 # can silently go stale.
 /reports/
+
+# Per-demo datasets and isolated frontend previews; retained until removed manually.
+/.demo/
