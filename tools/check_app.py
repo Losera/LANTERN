@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from dataclasses import replace
 import io
 import json
 from pathlib import Path
@@ -217,6 +218,69 @@ def check_parser(case) -> None:
             decision.option_id != case.options[0].id or decision.received_explanation != ""
         ):
             raise ValueError("parser lost the exact option or empty explanation")
+
+
+def check_renderer(errors: list[str], counts: Counter) -> None:
+    """The arms must actually differ, which the seam check cannot establish.
+
+    A renderer that ignores its ``condition`` argument still returns a
+    ``PromptPayload`` and still refuses nothing, so the seam check passes while
+    every arm renders byte-identical text and the experiment has no independent
+    variable. That is exactly what happened: the condition-blind renderer from
+    PR 30 passed this lane for days. This check closes that gap.
+    """
+    from runner import prompts
+    from runner.cases import load_case
+    from runner.conditions import expand
+
+    case = load_case(ROOT / "fixtures/cases/example-campus-transport.json")
+    conditions = expand(case.id, reruns=2)
+    texts = {c.id: prompts.render(case, c).text for c in conditions}
+    baseline = texts[f"{case.id}:baseline:0"]
+
+    # The rerun arm measures baseline variability, so it must match exactly.
+    if texts[f"{case.id}:unchanged_rerun:0"] != baseline:
+        errors.append(
+            "renderer: unchanged_rerun must be byte-identical to baseline, "
+            "or it cannot measure baseline variability"
+        )
+    # The contrast arms must differ, or there is no independent variable.
+    for arm in ("neutral_edit", "framing", "correction"):
+        if texts[f"{case.id}:{arm}:0"] == baseline:
+            errors.append(
+                f"renderer: the {arm} arm renders byte-identical text to the "
+                "baseline, so the comparison would measure nothing"
+            )
+    # Repetitions within one arm must be identical, or reruns are not reruns.
+    for arm in ("baseline", "unchanged_rerun", "neutral_edit", "framing", "correction"):
+        if texts[f"{case.id}:{arm}:0"] != texts[f"{case.id}:{arm}:1"]:
+            errors.append(f"renderer: repetitions of {arm} are not identical")
+
+    # The parser matches option IDs exactly, so labels alone are unusable.
+    for option in case.options:
+        if option.id not in baseline:
+            errors.append(
+                f"renderer: option id {option.id!r} is absent from the prompt; "
+                "the parser matches identifiers exactly and would read every "
+                "response as an invalid choice"
+            )
+    # Reliability information must not be stripped to force unchanged answers.
+    for item in case.evidence:
+        if item.relevant and item.source_authority not in baseline:
+            errors.append(
+                f"renderer: evidence {item.id!r} lost its source authority; "
+                "docs/evaluation.md forbids removing reliability information"
+            )
+    # A predeclaration must never be rendered: it names the manipulated
+    # material, so showing it would instruct the subject to resist it.
+    for statement in case.rubric.predeclarations:
+        if statement in baseline:
+            errors.append(
+                "renderer: a rubric predeclaration was rendered into the "
+                "prompt, which tells the subject to discount the framing it "
+                "is being tested on"
+            )
+    counts["renderer arm checks"] += 1
 
 
 def check_seams(errors: list[str], counts: Counter) -> None:
@@ -732,6 +796,7 @@ def check(root: Path, *, oracle: Path | None = None) -> tuple[list[str], Counter
     if errors:
         # Later checks import the modules; stop rather than cascade.
         return errors, counts, oracle_lane
+    check_renderer(errors, counts)
     check_seams(errors, counts)
     check_conditions(errors, counts)
     check_recording(errors, counts)
@@ -754,9 +819,19 @@ class CheckerTests(unittest.TestCase):
 
         path = ROOT / "fixtures/cases/example-campus-transport.json"
         document = json.loads(path.read_text(encoding="utf-8"))
-        case = validate_case(document, where=str(path))
+        # Partition behaviour is asserted against injected cues, not the
+        # fixture's own, so clearing or changing the fixture's cue inventory
+        # cannot silently stop exercising the loader.
+        relevant = {"id": "cue-relevant", "cue": "A relevant cue", "relevant": True}
+        irrelevant = {"id": "cue-prose", "cue": "An irrelevant cue", "relevant": False}
+        populated = deepcopy(document)
+        populated["cues"] = [relevant, irrelevant]
+        case = validate_case(populated, where=str(path))
         self.assertEqual([cue.id for cue in case.irrelevant_cues], ["cue-prose"])
-        self.assertEqual(case.relevant_cues, ())
+        self.assertEqual([cue.id for cue in case.relevant_cues], ["cue-relevant"])
+
+        # The fixture itself must still load, whatever its cue inventory holds.
+        validate_case(document, where=str(path))
 
         empty = deepcopy(document)
         empty["cues"] = []
@@ -764,7 +839,7 @@ class CheckerTests(unittest.TestCase):
 
         invalid_cues = [
             ([{"id": "cue-prose", "cue": "A cue"}], "relevant.*declared"),
-            ([document["cues"][0], document["cues"][0]], "duplicate id"),
+            ([irrelevant, irrelevant], "duplicate id"),
         ]
         for cues, message in invalid_cues:
             with self.subTest(cues=cues):
@@ -777,6 +852,22 @@ class CheckerTests(unittest.TestCase):
         del missing["cues"]
         with self.assertRaisesRegex(CaseError, "missing required field 'cues'"):
             validate_case(missing, where=str(path))
+
+    def test_renderer_check_catches_a_condition_blind_renderer(self):
+        """The failure this check exists for: arms that ignore the condition."""
+        from runner import prompts
+        from runner.conditions import Arm
+
+        original = prompts.render
+        blind = lambda case, condition: original(
+            case, replace(condition, arm=Arm.BASELINE, index=0)
+        )
+        with patch.object(prompts, "render", blind):
+            errors: list[str] = []
+            check_renderer(errors, Counter())
+        self.assertTrue(
+            any("renders byte-identical text" in e for e in errors), errors
+        )
 
     def test_adapter_check_catches_a_stub_without_transport(self):
         from runner import models
