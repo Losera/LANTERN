@@ -23,7 +23,10 @@ from runner.outcomes import Correctness, Outcome, classify
 from runner.unknown import UNKNOWN
 
 FORMAT = "lantern.alpha.batch"
-IDENTITY = ("execution_site", "model_id", "model_revision", "harness", "harness_version")
+#: Re-exported from ``runner.recording`` rather than restated. Import and the
+#: dataset writer must refuse the same mismatches; two copies of this tuple
+#: would let one path accept what the other rejects.
+IDENTITY = recording.IDENTITY
 SHA256 = re.compile(r"[0-9a-f]{64}")
 
 

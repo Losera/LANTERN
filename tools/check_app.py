@@ -480,6 +480,28 @@ def check_recording(errors: list[str], counts: Counter) -> None:
             )
         if UNKNOWN is None:
             errors.append("recording: UNKNOWN must not be None")
+
+        other = AttemptRecord(
+            run_id="r", case_id="c", condition_id="c:baseline:0", arm=Arm.BASELINE,
+            attempt_id="b", operation_id="o", outcome=Outcome.TIMEOUT,
+            provenance=Provenance(execution_site=ExecutionSite.LOCAL,
+                                  model_id="a-different-model"),
+        )
+        try:
+            append(path, other)
+        except RecordError:
+            counts["mixed dataset identity refused"] += 1
+        else:
+            errors.append(
+                "recording: a second model/runtime identity was appended to an "
+                "existing dataset; runner/analysis.py pairs attempts across arms "
+                "and would average two models into one effect"
+            )
+        if len(list(read_attempts(path))) != 2:
+            errors.append(
+                "recording: a refused append still changed the file; the "
+                "identity check must run before any byte is written"
+            )
     counts["recording checks"] += 1
 
 
@@ -1064,6 +1086,59 @@ class CheckerTests(unittest.TestCase):
             self.assertTrue(any("must be null" in e for e in errors), errors)
         finally:
             recording.encode = original
+
+    def test_recording_check_catches_a_mixed_dataset_identity(self):
+        from runner import recording
+        original = recording.dataset_identity
+        recording.dataset_identity = lambda path: None
+        try:
+            errors: list[str] = []
+            check_recording(errors, Counter())
+            self.assertTrue(
+                any("second model/runtime identity" in e for e in errors), errors)
+        finally:
+            recording.dataset_identity = original
+
+    def test_dataset_identity_reports_a_file_that_already_mixes_models(self):
+        from runner import recording
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "attempts.jsonl"
+            rows = []
+            for model in ("model-one", "model-two"):
+                rows.append(json.dumps({"provenance": {
+                    "execution_site": "local", "model_id": model,
+                    "model_revision": None, "harness": "ollama",
+                    "harness_version": "0.40.7"}}))
+            path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+            with self.assertRaises(recording.RecordError) as caught:
+                recording.dataset_identity(path)
+            self.assertIn("2 model/runtime identities", str(caught.exception))
+            self.assertIn("lines 1 and 2", str(caught.exception))
+
+    def test_dataset_identity_treats_an_unknown_model_as_distinct(self):
+        from runner import recording
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "attempts.jsonl"
+            known = {"execution_site": "local", "model_id": "model-one",
+                     "model_revision": None, "harness": "ollama",
+                     "harness_version": "0.40.7"}
+            unknown = dict(known, model_id=None)
+            path.write_text(
+                json.dumps({"provenance": known}) + "\n"
+                + json.dumps({"provenance": unknown}) + "\n", encoding="utf-8")
+            with self.assertRaises(recording.RecordError) as caught:
+                recording.dataset_identity(path)
+            self.assertIn("unknown", str(caught.exception))
+
+    def test_retained_datasets_hold_one_identity_each(self):
+        from runner import recording
+        for name in ("fixtures/attempts/example.jsonl",
+                     "evidence/local/pilot-2026-11-08/attempts.jsonl"):
+            path = ROOT / name
+            if not path.exists():
+                continue
+            identity = recording.dataset_identity(path)
+            self.assertIsNotNone(identity, name)
 
     def test_frontend_check_catches_an_external_url(self):
         with tempfile.TemporaryDirectory() as temporary:
