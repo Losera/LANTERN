@@ -1,20 +1,229 @@
 # Current status and handoff
 
-## Next session: the first real measurement
+## Next session: resolve the compute-agnostic claim overlap
 
-The render, generate and parse path now runs end to end on the approved local
-model, and the five condition arms render distinct prompts. What does not exist
-is a measurement: every attempt record is still synthetic.
+Three reviewed pull requests are open and green; see the handoff below. The
+first action is not code. [Issue 17](https://github.com/Losera/LANTERN/issues/17)
+and [issue 68](https://github.com/Losera/LANTERN/issues/68) describe the same
+`execution_site` vocabulary decision, and issue 17 holds a claim the lead
+granted on November 7, 2026. Until that overlap is resolved, the compute-agnostic
+work in issues 69 and 70 cannot start without putting two writers on one
+decision, which is the pattern
+[issue 22](https://github.com/Losera/LANTERN/issues/22) tracks.
 
-One blocker remains, and it is the orchestration command in
-[issue 16](https://github.com/Losera/LANTERN/issues/16). `runner/cli.py` cannot
-execute the experiment. See the
-[measurement handoff](measurement-handoff.md) for state, non-negotiables,
-traps that have already cost time, and the verification commands.
+**Alpha cluster access is no longer standing.** The experiment is not blocked by
+that, because Alpha never produced a decision: its four retained bundles are a
+smoke test, an environment inventory, a `GPU inference ready.` generation, and a
+capacity diagnostic, and no `option_id` appears in any of them. Losing Alpha
+costs scale, not the experiment. Issues 10 and 33 can no longer reach their
+remaining acceptance; issue 37's blocker is dissolved and that issue becomes
+current rather than deferred.
 
-Grading stays out of scope for that run: `runner/analysis.py` derives the
-framing effect from option choices alone, so correctness remains `unknown` and
-`parsing.grade` remains a refusing seam.
+A real measurement now exists, and the earlier statement here that every attempt
+record was synthetic is superseded. The retained local pilot at
+`evidence/local/pilot-2026-11-08/` holds 20 attempts with `synthetic_records: 0`
+and `all_records_synthetic: false`, across five arms and four repetitions, and
+reports `effect: none_measured`. `runner/cli.py` has a `run` command and
+produced it, so issue 16's orchestration blocker is also superseded; what remains
+open on issue 16 is named in the handoff below.
+
+That pilot is one case, so it is a valid mechanical null result and **not** a
+measurement of framing sensitivity: [evaluation](evaluation.md) is explicit that
+repeated runs of one case are not independent new cases. Expanding the case set
+and declaring a held-out split is
+[issue 76](https://github.com/Losera/LANTERN/issues/76).
+
+Grading is still out of scope and correctness is still `unknown` for every
+record: `runner/analysis.py` derives the framing effect from option choices
+alone, and `parsing.grade` remains a refusing seam because no frozen grading key
+exists. See the [measurement handoff](measurement-handoff.md) for
+non-negotiables, traps that have already cost time, and verification commands.
+
+## Board reconciliation and three reviewed changes: November 9, 2026 UTC
+
+**Objective:** reconcile the issue board against the repository
+([issue 65](https://github.com/Losera/LANTERN/issues/65)), salvage uncommitted
+work from volatile worktrees, and close the one acceptance gap the audit found
+genuinely unmet.
+
+**Branches and worktrees:** three task branches cut from `e5e7241`, each one
+commit, each pushed, none merged. No worktree was created; work happened in the
+primary checkout and `main` was left untouched at `e5e7241`.
+
+| Branch | Head | Pull request |
+| --- | --- | --- |
+| `fix/alpha-smoke-account` | `6e9657f`, 2026-11-08 21:09 UTC | [PR 78](https://github.com/Losera/LANTERN/pull/78) |
+| `salvage/frontend-run-harness` | `2f84fae`, 2026-11-08 21:08 UTC | [PR 79](https://github.com/Losera/LANTERN/pull/79) |
+| `fix/dataset-model-identity` | `a5d2a53`, 2026-11-09 03:43 UTC | [PR 80](https://github.com/Losera/LANTERN/pull/80) |
+
+**State:** all three await the lead's semantic review. None was merged. PR 80 is
+a contract change and therefore not minimal under
+[AGENTS.md](../AGENTS.md) section 7; PR 79 additionally needs a decision rather
+than only a review, for the reason recorded under unresolved risks.
+
+### Completed work
+
+**Board reconciliation.** All 15 pre-existing open issues were audited against
+the tree at `e5e7241` and 13 dated comments were posted. Nothing was closed, no
+claim was granted or changed, and no issue body was edited, because closure,
+claims, and scope belong to the lead under
+[CONTRIBUTING](../CONTRIBUTING.md#claim-work). Findings:
+
+| Disposition | Issues |
+| --- | --- |
+| Acceptance fully met; closure recommended | 18, 19 |
+| Met with a residual item for the lead | 8, 27 |
+| Genuinely not met; keep open | 16 |
+| Premise no longer satisfiable after Alpha | 10, 33, 37 |
+| Promoted from fallback to primary path | 17 |
+| Audited and accurate; no change needed | 2, 3, 9, 11, 21, 22 |
+
+Issue 17 changed meaning without its body changing. Its objective was a
+contingency "even if the Alpha readiness gates in #10 do not clear"; with Alpha
+access ended, the non-Alpha execution site is the only execution site. Its
+stated risk also already resolved in the project's favour, because the pilot is
+an off-cluster run and is correctly labelled `execution_site: 'local'`.
+
+Issue 18's body still pointed at PR 45, which is **closed**; its acceptance was
+met by PR 53 instead. Following that pointer leads nowhere, which is the specific
+failure the reconciliation existed to fix.
+
+**Salvage from volatile storage.** `/tmp` is `tmpfs` on this machine and held 18
+of 22 worktrees, so uncommitted work there was one reboot from gone.
+`docs/frontend-run-design.md` and `tools/test_frontend.cjs` existed nowhere in
+`main` and are retained verbatim in PR 79. A one-line
+`#SBATCH --account=rpicourse` addition is in PR 78;
+`examples/alpha-smoke.sbatch` was the only sbatch file in `examples/` without
+it. Four unretained Alpha probe directories and three sbatch scripts present in
+no path in `main` were copied to `~/lantern-salvage-2026-11-08/` with a
+provenance README, and their retention is deferred to
+[issue 77](https://github.com/Losera/LANTERN/issues/77).
+
+**The dataset identity guard (PR 80).** Issue 16 requires one model and one
+runtime per dataset and that a run which would mix either must refuse. No such
+guard existed: `cli.cmd_run` checked timeout, run id, label, path resolution,
+duplicate attempt ids, and plan consistency, and none of those compared
+provenance against the records already in the file.
+
+The failure mode was silent. `runner/analysis.py` pairs attempts across arms and
+computes a single `effect`, so two models' attempts in one file would be averaged
+into an effect belonging to neither, while every individual record stayed well
+formed and every unknown stayed honestly named. That is the same shape as
+`e5cf45d`: a change that leaves the lane green while the dataset stops meaning
+what it claims.
+
+The guard is in `recording.append_many`, the single chokepoint every dataset
+write passes through, so it also covers `alpha_import._record` and any later
+compute backend. Placing it there rather than in the command also left
+`runner/cli.py` untouched, which issue 16 assigns exclusively to Teammate B. The
+rule is not new: `alpha_import` already refused an incompatible model/runtime
+identity over five provenance fields, and that tuple now lives in
+`recording.IDENTITY` which `alpha_import` re-exports, so the two paths cannot
+drift into accepting what the other rejects. PR 80 proposes a matching
+"One dataset holds one model and runtime" section for
+[contracts](contracts.md); that section is not on `main` until the pull request
+merges.
+
+### Changed files
+
+- PR 78: `examples/alpha-smoke.sbatch`.
+- PR 79: `docs/frontend-run-design.md`, `tools/test_frontend.cjs`, both added.
+- PR 80: `runner/recording.py`, `runner/alpha_import.py`, `tools/check_app.py`,
+  `docs/contracts.md`.
+
+### Verification performed
+
+Local runs are recorded per branch rather than claimed for all three, because
+the branches received different local coverage. CI ran all three jobs on all
+three pull requests.
+
+| Lane | Where run locally | Result |
+| --- | --- | --- |
+| `python3 tools/check_app.py --self-test` | all three branches | 29 tests OK on PR 80, up from 25; 25 OK on PRs 78 and 79 |
+| `python3 tools/check_app.py` | all three branches | PASS, `2 seams refusing`; PR 80 adds `1 mixed dataset identity refused` |
+| `python3 tools/check_bootstrap.py --self-test` | all three branches | 15 tests OK |
+| `python3 tools/check_bootstrap.py` | all three branches | PASS; 30 documents, or 31 on PR 79 |
+| `python3 tools/test_alpha_submit.py` | PRs 78 and 80 | 28 tests OK |
+| `test_alpha_import`, `test_alpha_parsing`, `test_alpha_batch`, `test_alpha_executor`, `test_alpha_diagnostic` | PR 80 only | 43, 17, 29, 18 and 13 tests OK |
+| `python3 tools/test_local_demo.py` | PR 80 only | 6 tests OK |
+| `python3 -m runner.cli validate` | PR 80 only | PASS |
+| `git diff --check` | all three branches | clean |
+| CI at each pushed head | all three pull requests | `Application lane`, `Documentation lane and diff whitespace` and `Alpha offline suites` all green |
+
+**PR 80's lane is shown to catch its regression rather than merely to pass.**
+Neutralising `dataset_identity` in a scratch copy of the tree fails
+`check_app.py` with both "a second model/runtime identity was appended to an
+existing dataset" and "a refused append still changed the file", and fails the
+self-test with four failures. This is the standard PR 50 set after `e5cf45d`.
+
+Both retained datasets pass the new guard unchanged:
+`fixtures/attempts/example.jsonl` holds `unapproved-placeholder` and the pilot
+holds `qwen2.5:1.5b-instruct`.
+
+### Verification still needed
+
+- Lead semantic review of all three pull requests before any merge.
+- PR 78's `--account` directive was never exercised against Slurm accounting;
+  Alpha access has ended, so it cannot be. The claim rests on consistency with
+  the three sbatch files already on `main`.
+- PR 80's guard is exercised against constructed records and the two retained
+  datasets. No live `runner.cli run` attempted a model switch mid-dataset,
+  because that needs a second installed model.
+- Issue 27's last acceptance clause, that a transport or generation failure
+  surfaces as `outcome: "error"`, is covered by offline fixtures only. The pilot
+  recorded zero failures, so no real failure has been observed.
+
+### Failed approaches and important discoveries
+
+- **A mechanical branch sweep would have destroyed work.**
+  `feat/prompt-rendering-handoff` (`f22b89d`) is **not an ancestor of `main`**, so
+  that branch ref is the only thing holding the commit; it has no pull request,
+  is cited at `docs/measurement-handoff.md:37`, and backs issue 8.
+  `wip/grader-draft-b` (`e5cf45d`) **is** an ancestor, so its commit survives
+  deletion, but three tracked documents cite it by branch name. `git branch
+  --merged` and pull-request state both report these as disposable and are
+  actively misleading here. The reliable pair of checks is
+  `git merge-base --is-ancestor` plus `git grep` for the branch name over
+  `origin/main`. Tracked as [issue 67](https://github.com/Losera/LANTERN/issues/67).
+- **Alpha never produced a decision**, established by grepping all four retained
+  bundles for `option_id`. This reframes the loss of cluster access from a
+  project-threatening event to a scale reduction.
+- **Four issues were filed without first auditing the board**, and issues 68
+  through 71 partly duplicate issues 17 and 37. Issue 17 already owns the
+  `execution_site` vocabulary decision under a granted claim, and issue 37 is the
+  design memo that issues 69 and 70 implement. Cross-reference comments are on
+  all five. Auditing before filing would have avoided this.
+
+### Unresolved risks
+
+- **PR 79 adds a known-failing test file.** `tools/test_frontend.cjs` scores 2
+  pass and 11 fail against the current `frontend/app.js` under node v22.23.2,
+  because it was written against the pre-PR-61 internals. No lane runs it, so CI
+  stays green, but merging means carrying a red file in the tree. The alternative
+  is leaving PR 79 unmerged, in which case its branch is the only copy. This is a
+  decision, not a review comment.
+- **PR 80 treats an unobserved identity field as a distinct identity rather than
+  a wildcard.** A dataset cannot claim one model when a record cannot say which
+  model produced it. The consequence is that importing a bundle with unobserved
+  provenance into a dataset with known provenance now refuses. This is the most
+  contestable choice in the change.
+- **Worktree placement is a standing hazard.** 18 of 22 worktrees were on
+  `tmpfs`. Today opened with a salvage operation rather than with work because of
+  it. The modified `frontend/app.js`, `index.html`, and `styles.css` in
+  `/tmp/LANTERN-frontend-real-results` are deliberately preserved nowhere, being
+  superseded by PR 61, and will not survive a reboot.
+- **The direct-push gap on `main` is still open.** Branch protection requires
+  three strict status checks but has `enforce_admins=false` and
+  `required_approving_review_count=0`, so the path `e5cf45d` took remains
+  available. Tracked as [issue 66](https://github.com/Losera/LANTERN/issues/66).
+
+### Next recommended action
+
+Resolve the issue 17 and issue 68 overlap before any Tier 1 implementation
+starts, then act on issue 65's decision list: close issues 18 and 19 or state
+their residual items, decide issues 8 and 27, close issues 10 and 33 as no longer
+obtainable, and dissolve issue 37's blocker. Issue 16 stays open on the live
+`runner.cli run` model-switch verification that PR 80's guard still lacks.
 
 ## Alpha batch implementation: November 8, 2026
 
