@@ -1,0 +1,1628 @@
+<title>Ledger, Not Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,600;6..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;450;600&display=swap">
+
+<style>
+/* ──────────────────────────────────────────────────────────────────────
+   Tokens. The bare :root carries the complete light palette. The two
+   dark blocks redefine tokens only. The --term-* set is DELIBERATELY
+   absent from both: a terminal is obsidian in either theme, so the page
+   chrome adapts around windows that do not.
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --ground:       #e9e7ee;
+  --surface:      #f6f5fa;
+  --surface-2:    #ffffff;
+  --rule:         #d3d0de;
+  --rule-strong:  #b2adc3;
+  --ink:          #17141f;
+  --ink-dim:      #5a5568;
+  --ink-faint:    #837e93;
+  --violet:       #5b3fa0;
+  --violet-soft:  #e5e0f3;
+  --crimson:      #a81f33;
+  --crimson-soft: #f6e2e5;
+  --gold:         #80600e;
+  --gold-soft:    #f5ecd4;
+  --stable:       #2f5e4a;
+  --on-violet:    #ffffff;
+
+  /* Invariant across themes — the terminal's own palette. */
+  --term-bg:      #0b0a0f;
+  --term-chrome:  #141220;
+  --term-fg:      #e8e4da;
+  --term-dim:     #7c8086;
+  --term-faint:   #4e5056;
+  --term-violet:  #9b7be0;
+  --term-crimson: #d94a5e;
+  --term-gold:    #d8a531;
+  --term-stable:  #6fb894;
+  --term-rule:    #2a2638;
+
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --display: "Bodoni Moda", "Didot", "Times New Roman", serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:       #0b0a0f;
+    --surface:      #141220;
+    --surface-2:    #1a1724;
+    --rule:         #2a2638;
+    --rule-strong:  #413a56;
+    --ink:          #e8e4da;
+    --ink-dim:      #8f899e;
+    --ink-faint:    #6b6579;
+    --violet:       #9b7be0;
+    --violet-soft:  #241e36;
+    --crimson:      #e0697b;
+    --crimson-soft: #2b1619;
+    --gold:         #d8a531;
+    --gold-soft:    #2a2112;
+    --stable:       #7fbfa0;
+  --on-violet:    #0b0a0f;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:       #0b0a0f;
+  --surface:      #141220;
+  --surface-2:    #1a1724;
+  --rule:         #2a2638;
+  --rule-strong:  #413a56;
+  --ink:          #e8e4da;
+  --ink-dim:      #8f899e;
+  --ink-faint:    #6b6579;
+  --violet:       #9b7be0;
+  --violet-soft:  #241e36;
+  --crimson:      #e0697b;
+  --crimson-soft: #2b1619;
+  --gold:         #d8a531;
+  --gold-soft:    #2a2112;
+  --stable:       #7fbfa0;
+  --on-violet:    #0b0a0f;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: 16.5px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1140px; margin: 0 auto; padding: 0 28px; }
+.measure { max-width: 68ch; }
+.measure-wide { max-width: 82ch; }
+
+h1, h2, h3 { font-family: var(--display); font-weight: 700; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.6rem, 6vw, 4.5rem); line-height: 1.02; letter-spacing: -0.015em; }
+h2 { font-size: clamp(1.75rem, 3.2vw, 2.5rem); line-height: 1.1; letter-spacing: -0.01em; }
+h3 { font-size: 1.22rem; line-height: 1.25; font-weight: 600; }
+p { margin: 0; }
+
+a { color: var(--violet); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--violet); outline-offset: 3px; }
+
+code, .m { font-family: var(--mono); font-size: 0.875em; font-variant-ligatures: none; }
+code {
+  background: var(--violet-soft);
+  color: var(--ink);
+  padding: 0.1em 0.34em;
+  border-radius: 2px;
+}
+
+/* ── Eyebrow + box-drawing rule: lifted from the terminal's own section
+      style, so the page is set in the vernacular it is arguing about. ── */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--violet);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.eyebrow::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule-strong);
+}
+
+section { padding: 76px 0; border-top: 1px solid var(--rule); }
+section:first-of-type { border-top: 0; }
+.stack { display: flex; flex-direction: column; gap: 20px; }
+.stack-tight { display: flex; flex-direction: column; gap: 10px; }
+.stack-loose { display: flex; flex-direction: column; gap: 40px; }
+
+.lede { font-size: 1.1rem; color: var(--ink-dim); }
+.note { font-size: 0.93rem; color: var(--ink-dim); }
+
+/* ── Hero ───────────────────────────────────────────────────────────── */
+.hero { padding: 68px 0 72px; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr); gap: 52px; align-items: start; }
+@media (max-width: 1000px) { .hero-grid { grid-template-columns: 1fr; gap: 36px; } }
+
+.kicker {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 22px;
+}
+.hero h1 em { font-style: italic; color: var(--violet); }
+.verdict-card {
+  margin-top: 26px;
+  border-top: 2px solid var(--violet);
+  background: var(--surface);
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.verdict-card .vlabel {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.verdict-card .vname { font-family: var(--display); font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
+
+/* ── Terminal frame ─────────────────────────────────────────────────── */
+.term {
+  background: var(--term-bg);
+  border: 1px solid var(--term-rule);
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 14px 40px -18px rgba(0,0,0,0.55);
+}
+.term-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  background: var(--term-chrome);
+  border-bottom: 1px solid var(--term-rule);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--term-dim);
+  letter-spacing: 0.04em;
+}
+.term-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--term-faint); flex: none; }
+.term-bar .dot.live { background: var(--term-violet); }
+.term-bar .grow { flex: 1; }
+.term-body { overflow-x: auto; padding: 16px 18px 18px; }
+.term-body pre {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12.6px;
+  line-height: 1.58;
+  color: var(--term-fg);
+  white-space: pre;
+  min-width: max-content;
+  font-variant-ligatures: none;
+}
+.term-sm .term-body pre { font-size: 11.6px; line-height: 1.52; }
+
+.t-dim    { color: var(--term-dim); }
+.t-faint  { color: var(--term-faint); }
+.t-vio    { color: var(--term-violet); }
+.t-crim   { color: var(--term-crimson); }
+.t-gold   { color: var(--term-gold); }
+.t-stab   { color: var(--term-stable); }
+.t-fg     { color: var(--term-fg); }
+.t-b      { font-weight: 600; }
+.t-inv    { background: var(--term-violet); color: var(--term-bg); font-weight: 600; }
+.t-crim-i { background: var(--term-crimson); color: var(--term-bg); font-weight: 600; }
+
+.term-cap {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  line-height: 1.5;
+  color: var(--ink-dim);
+  margin-top: 11px;
+  padding-left: 2px;
+}
+.term-cap b { color: var(--ink); font-weight: 600; }
+
+/* ── Simulation controls ────────────────────────────────────────────── */
+.sim-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 13px 14px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-top: 0;
+  border-radius: 0 0 5px 5px;
+  margin-top: -5px;
+}
+.btn {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  padding: 7px 13px;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--violet); color: var(--violet); }
+.btn.primary { background: var(--violet); border-color: var(--violet); color: var(--on-violet); }
+.btn.primary:hover { filter: brightness(1.12); color: var(--on-violet); }
+.btn[aria-pressed="true"] { background: var(--violet); border-color: var(--violet); color: var(--on-violet); }
+
+.scrub { flex: 1; min-width: 150px; accent-color: var(--violet); }
+.frame-read {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pass-switch { display: flex; gap: 0; border: 1px solid var(--rule-strong); border-radius: 3px; overflow: hidden; }
+.pass-switch .btn { border: 0; border-radius: 0; }
+.pass-switch .btn + .btn { border-left: 1px solid var(--rule-strong); }
+
+.banner-illus {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 0.73rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--gold-soft);
+  color: var(--gold);
+  border-left: 3px solid var(--gold);
+  padding: 9px 13px;
+  margin-bottom: 12px;
+}
+.banner-illus[hidden] { display: none; }
+
+/* ── Palette plate ──────────────────────────────────────────────────── */
+.swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+.sw { background: var(--surface-2); padding: 0; display: flex; flex-direction: column; }
+.sw .chip { height: 72px; }
+.sw .meta { padding: 11px 13px 13px; display: flex; flex-direction: column; gap: 3px; }
+.sw .nm { font-family: var(--mono); font-size: 0.8rem; font-weight: 600; }
+.sw .hx { font-family: var(--mono); font-size: 0.74rem; color: var(--ink-dim); }
+.sw .use { font-size: 0.78rem; color: var(--ink-dim); line-height: 1.4; }
+.sw.reserved .nm::after {
+  content: "RESERVED";
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  margin-left: 7px;
+  padding: 1px 5px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  vertical-align: 1px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+/* ── Findings ───────────────────────────────────────────────────────── */
+.finding {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 0 22px;
+  padding: 26px 0;
+  border-top: 1px solid var(--rule);
+}
+.finding:first-child { border-top: 0; }
+@media (max-width: 720px) { .finding { grid-template-columns: 1fr; gap: 14px; } }
+.fid {
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--violet);
+  font-variant-numeric: tabular-nums;
+}
+.sev {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 2px;
+  margin-top: 7px;
+}
+.sev.blocking { background: var(--crimson-soft); color: var(--crimson); }
+.sev.serious  { background: var(--gold-soft); color: var(--gold); }
+.sev.minor    { background: var(--violet-soft); color: var(--violet); }
+.finding h3 { margin-bottom: 9px; }
+.ev {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+  padding: 8px 0 0;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ev .lbl { color: var(--ink-faint); letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.68rem; padding-top: 1px; }
+.repair {
+  margin-top: 13px;
+  border-left: 2px solid var(--violet);
+  padding: 2px 0 2px 15px;
+  font-size: 0.97rem;
+}
+.repair .lbl {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--violet);
+  display: block;
+  margin-bottom: 3px;
+}
+
+/* ── Tables ─────────────────────────────────────────────────────────── */
+.tscroll { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface-2); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 0.9rem; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+thead th {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  background: var(--surface);
+  white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: 0; }
+td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td .m { color: var(--ink-dim); }
+.mark { font-family: var(--mono); font-weight: 600; }
+.mark.yes { color: var(--stable); }
+.mark.no  { color: var(--crimson); }
+.mark.part { color: var(--gold); }
+
+/* ── Mockup columns ─────────────────────────────────────────────────── */
+.mockups { display: grid; grid-template-columns: 1fr; gap: 44px; }
+.mock-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.mock-head .tag {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 2px;
+  background: var(--violet-soft);
+  color: var(--violet);
+}
+.mock-head .tag.rejected { background: var(--crimson-soft); color: var(--crimson); }
+.mock-head .tag.chosen { background: var(--violet); color: var(--on-violet); }
+.mock-head h3 { font-family: var(--display); }
+.mock-head .src { font-family: var(--mono); font-size: 0.74rem; color: var(--ink-faint); }
+
+/* ── Two-up grid ────────────────────────────────────────────────────── */
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 34px; }
+@media (max-width: 860px) { .two { grid-template-columns: 1fr; gap: 26px; } }
+
+.callout {
+  background: var(--surface);
+  border-left: 3px solid var(--rule-strong);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.callout.gate { border-left-color: var(--crimson); }
+.callout .ttl {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.callout.gate .ttl { color: var(--crimson); }
+
+.ledger-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ledger-list li {
+  display: grid;
+  grid-template-columns: 22px minmax(0,1fr);
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.97rem;
+}
+.ledger-list li:last-child { border-bottom: 0; }
+.ledger-list .g { font-family: var(--mono); font-weight: 600; color: var(--violet); }
+
+footer { border-top: 1px solid var(--rule); padding: 44px 0 64px; }
+.footmeta { font-family: var(--mono); font-size: 0.76rem; color: var(--ink-faint); line-height: 1.75; }
+
+.theme-switch { position: fixed; top: 14px; right: 16px; z-index: 20; display: flex; gap: 0; border: 1px solid var(--rule-strong); border-radius: 3px; overflow: hidden; background: var(--surface-2); }
+.theme-switch button { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; background: transparent; border: 0; color: var(--ink-dim); padding: 6px 9px; cursor: pointer; }
+.theme-switch button + button { border-left: 1px solid var(--rule); }
+.theme-switch button[aria-pressed="true"] { background: var(--violet); color: var(--on-violet); }
+@media (max-width: 760px) { .theme-switch { display: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="theme-switch" role="group" aria-label="Theme">
+  <button type="button" data-theme-set="light" aria-pressed="false">Light</button>
+  <button type="button" data-theme-set="auto" aria-pressed="true">Auto</button>
+  <button type="button" data-theme-set="dark" aria-pressed="false">Dark</button>
+</div>
+
+<header class="hero wrap">
+  <div class="hero-grid">
+    <div>
+      <p class="kicker">LANTERN · interface direction review · 2026-11-16</p>
+      <h1>Ledger,<br>not <em>dashboard</em></h1>
+      <div class="verdict-card">
+        <span class="vlabel">Recommended direction</span>
+        <span class="vname">C — The Streaming Ledger</span>
+        <p class="note">Line-oriented, append-only, no alternate screen. One determinate
+        progress bar over a schedule that is frozen before the first model call. Panels
+        that stay <em>masked with a stated reason</em> rather than showing a number on a
+        partial denominator.</p>
+      </div>
+      <p class="note" style="margin-top:18px">Neither of the two directions on the table,
+      exactly. The new direction's own premise — <b>harness-native</b> — turns out to rule
+      out the dashboard form it implies, and lands somewhere better than both.</p>
+    </div>
+    <div>
+      <div class="term" id="hero-term">
+        <div class="term-bar"><span class="dot live"></span><span class="dot"></span><span class="dot"></span><span class="grow"></span><span>lantern run · campus-transport</span></div>
+        <div class="term-body"><pre id="hero-pre"></pre></div>
+      </div>
+      <p class="term-cap"><b>Attempt 14 of 20.</b> The noise floor is already final above the
+      rule; the effect is withheld and says why. Only the block under the rule repaints —
+      which is what makes the same output readable to a person watching and to an agent
+      reading scrollback.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section class="wrap">
+  <p class="eyebrow">The disagreement</p>
+  <div class="stack measure-wide">
+    <h2>The two directions are not variations on a theme</h2>
+    <p>The vault's <code>Reference/LANTERN Interface.md</code> (status <code>draft</code>, 2026-11-13)
+    proposes a terminal lane that prints <b>after</b> a run: a static <code>lantern report</code>
+    block, <code>--format csv|json|tsv</code> taps, and documented <code>jq</code> one-liners. The new
+    direction proposes a terminal lane that lives <b>during</b> a run: harness-native, visually
+    strong, with progress that is actually load-bearing rather than decorative.</p>
+    <p>That is a real fork, and it is decidable on evidence already in the repository. Below:
+    what the code actually permits, where each direction breaks, and the one form that keeps
+    what both get right.</p>
+  </div>
+
+  <div class="stack" style="margin-top:38px">
+    <h3>What the repository permits, read at <code>main</code> @ <code>e5e7241</code></h3>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Fact</th><th>Why it decides something</th><th class="num">Evidence</th></tr></thead>
+        <tbody>
+          <tr><td><b>Exactly one command is slow.</b> <code>cmd_run</code> loops conditions
+            sequentially; the pilot took 25.1 s for 20 attempts, ≈1.25 s each.</td>
+            <td>Progress has one honest home. <code>validate</code>, <code>expand</code>,
+            <code>analyze</code>, <code>export</code>, <code>trace</code> read files and print —
+            they finish before a spinner could render a second frame.</td>
+            <td class="num m">cli.py:243<br>execution.json</td></tr>
+          <tr><td><b>The schedule is frozen before the first model call.</b>
+            <code>expand(case.id, reruns=N)</code> returns the full matched set up front.</td>
+            <td>The denominator is real, not estimated. A determinate bar here is honest in a
+            way that a bar over a streaming token count never is.</td>
+            <td class="num m">cli.py:185<br>conditions.py:expand</td></tr>
+          <tr><td><b>The order is arm-major.</b> <code>baseline:0-3</code>,
+            <code>unchanged_rerun:0-3</code>, <code>neutral_edit:0-3</code>,
+            <code>framing:0-3</code>, <code>correction:0-3</code>.</td>
+            <td><b>The noise floor completes at attempt 8; the framing arm not until 16.</b>
+            Execution order already enforces the project's non-negotiable rule — the floor is
+            knowable before any contrast exists.</td>
+            <td class="num m">conditions.py:ARM_ORDER</td></tr>
+          <tr><td><b>A run emits nothing while it runs.</b> <code>RUN_ID=</code> to stderr, then
+            silence, then one JSON blob.</td>
+            <td>25 seconds of nothing is the current CLI's worst moment, and the standing
+            proposal does not address it.</td>
+            <td class="num m">cli.py:191<br>cli.py:363</td></tr>
+          <tr><td><b>Resume skips attempts without calling the model.</b> <code>skipped += 1</code>,
+            surfaced as <code>resumed</code> in the final JSON.</td>
+            <td>A naive bar races to 100% having made zero calls. Theatrical by accident unless
+            the bar separates resumed from called.</td>
+            <td class="num m">cli.py:270</td></tr>
+          <tr><td><b>Crimson and gold already carry meaning.</b> The standing design rules assign
+            crimson = flip, gold = unresolved, with <code>[=] [x] [?]</code> glyphs mandatory.</td>
+            <td>A Code Geass base is crimson/gold/black/violet. Two of those four are already
+            spoken for.</td>
+            <td class="num m">Interface.md<br>§ design rules</td></tr>
+          <tr><td><b>Zero dependencies is a declared asset.</b> The roadmap calls stdlib-only a
+            distribution <em>advantage</em>; <code>frontend/</code> has no build step.</td>
+            <td>Any TUI framework spends the one property that makes the tool trivial to install.</td>
+            <td class="num m">Roadmap §A.4</td></tr>
+          <tr><td><b>No voting inside an arm.</b> <code>_usable_choice</code> returns unresolved
+            when readable choices disagree within one arm.</td>
+            <td>Any view that prints <code>route-west x4</code> as a single cell will, on
+            disagreement, hide the exact variability the rerun arm exists to expose.</td>
+            <td class="num m">analysis.py:177</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <p class="eyebrow">Palette</p>
+  <div class="stack measure-wide">
+    <h2>Keep the Geass look; reserve two of its four colours</h2>
+    <p>The requested base is crimson, gold, black and violet. The standing terminal rules
+    already spend crimson on <em>flip</em> and gold on <em>unresolved</em>. If crimson also
+    draws headers, rules and borders, then a crimson <code>[x]</code> stops meaning
+    <em>something moved</em> — it becomes the colour the page is simply printed in.</p>
+    <p>So: chrome takes obsidian, violet and bone. Crimson and gold are reserved, appearing
+    only where a status is being named. The imperial look survives intact — violet on obsidian
+    is the more distinctive half of that palette anyway — and the alarm stays loud.</p>
+  </div>
+
+  <div class="swatches" style="margin-top:30px">
+    <div class="sw"><div class="chip" style="background:#0b0a0f"></div><div class="meta"><span class="nm">obsidian</span><span class="hx">#0B0A0F</span><span class="use">Ground. The terminal is this colour in light and dark themes alike.</span></div></div>
+    <div class="sw"><div class="chip" style="background:#6b4fa8"></div><div class="meta"><span class="nm">violet</span><span class="hx">#6B4FA8 · #9B7BE0 on obsidian</span><span class="use">All chrome: rules, headers, the progress fill, keys and labels.</span></div></div>
+    <div class="sw"><div class="chip" style="background:#e8e4da"></div><div class="meta"><span class="nm">bone</span><span class="hx">#E8E4DA</span><span class="use">Primary text. Warm enough to read long, cool enough not to glare.</span></div></div>
+    <div class="sw"><div class="chip" style="background:#7c8086"></div><div class="meta"><span class="nm">dim</span><span class="hx">#7C8086</span><span class="use">Secondary text, stable rows, sources, anything settled.</span></div></div>
+    <div class="sw reserved" style="color:#c2273d"><div class="chip" style="background:#c2273d"></div><div class="meta"><span class="nm" style="color:var(--crimson)">crimson</span><span class="hx">#C2273D</span><span class="use" style="color:var(--ink-dim)">Flip, and nothing else. Never a border, never a heading.</span></div></div>
+    <div class="sw reserved" style="color:#d8a531"><div class="chip" style="background:#d8a531"></div><div class="meta"><span class="nm" style="color:var(--gold)">gold</span><span class="hx">#D8A531</span><span class="use" style="color:var(--ink-dim)">Unresolved, withheld, and illustrative labels. Nothing else.</span></div></div>
+  </div>
+
+  <div class="two" style="margin-top:34px">
+    <div>
+      <div class="mock-head"><span class="tag chosen">Reserved</span><span class="src">crimson appears once</span></div>
+      <div class="term term-sm"><div class="term-bar"><span class="dot"></span><span class="grow"></span><span>contrasts</span></div><div class="term-body"><pre id="pal-good"></pre></div></div>
+    </div>
+    <div>
+      <div class="mock-head"><span class="tag rejected">Crimson as chrome</span><span class="src">crimson appears nine times</span></div>
+      <div class="term term-sm"><div class="term-bar"><span class="dot"></span><span class="grow"></span><span>contrasts</span></div><div class="term-body"><pre id="pal-bad"></pre></div></div>
+    </div>
+  </div>
+  <p class="term-cap measure-wide" style="margin-top:14px">Same data, same glyphs. On the right,
+  find the flip. The colour is not wrong — it has simply stopped being information. And since
+  crimson-on-black is the lowest-contrast of the common red–green deficiency pairings, the
+  glyphs <code>[=] [x] [?]</code> stay mandatory in both: colour is enhancement, never the
+  carrier, and <code>NO_COLOR</code> plus a non-TTY stdout drop it entirely.</p>
+</section>
+
+<section class="wrap">
+  <p class="eyebrow">Three forms</p>
+  <div class="stack measure-wide">
+    <h2>The same records, rendered three ways</h2>
+    <p>All three show the retained pilot: 20 attempts, every arm choosing <code>route-west</code>,
+    effect <code>none_measured</code>, correctness <code>unknown</code>. What differs is when the
+    view exists and what it is willing to say.</p>
+  </div>
+
+  <div class="mockups" style="margin-top:38px">
+    <div>
+      <div class="mock-head">
+        <span class="tag">Direction A</span>
+        <h3>Static report</h3>
+        <span class="src">as proposed in Interface.md, Lane 1</span>
+      </div>
+      <div class="term"><div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="grow"></span><span>lantern report</span></div><div class="term-body"><pre id="mock-a"></pre></div></div>
+      <p class="term-cap measure-wide"><b>Good:</b> the floor prints above the effect; every block
+      names its source; the label cannot be cropped out of a screenshot. <b>Breaks:</b> nothing
+      exists for the 25 seconds the user is waiting, and the <code>choices</code> column collapses
+      an arm to one cell — on disagreement it would read <code>route-west x3, route-east x1</code>
+      with no cue that the pair is therefore unresolved.</p>
+    </div>
+
+    <div>
+      <div class="mock-head">
+        <span class="tag rejected">Direction B</span>
+        <h3>Dashboard TUI</h3>
+        <span class="src">the new direction's implied form</span>
+      </div>
+      <div class="term"><div class="term-bar"><span class="dot live"></span><span class="dot"></span><span class="dot"></span><span class="grow"></span><span>alternate screen · 80×24 · repainting</span></div><div class="term-body"><pre id="mock-b"></pre></div></div>
+      <p class="term-cap measure-wide"><b>Good:</b> the wait is visible, the arms are legible at a
+      glance, it feels like a real instrument. <b>Breaks:</b> it is showing an effect on a partial
+      denominator at attempt 12 — and it is invisible to the harness it was designed for. An
+      alternate-screen view emits escape sequences, repaints over its own history and captures
+      stdin; scrollback keeps none of it.</p>
+    </div>
+
+    <div>
+      <div class="mock-head">
+        <span class="tag chosen">Direction C</span>
+        <h3>Streaming ledger</h3>
+        <span class="src">recommended</span>
+      </div>
+      <div class="term"><div class="term-bar"><span class="dot live"></span><span class="dot"></span><span class="dot"></span><span class="grow"></span><span>stdout · append-only · one live block</span></div><div class="term-body"><pre id="mock-c"></pre></div></div>
+      <p class="term-cap measure-wide"><b>What changed:</b> three phases print in order and nothing
+      above the current rule is ever rewritten. The bar separates <code>called</code> from
+      <code>resumed</code>. The effect panel is present but masked, and the mask names exactly what
+      it is waiting for — <code>framing 2/4</code> — which the arm-major schedule makes precisely
+      knowable. The reader learns the rule by being refused the number.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <p class="eyebrow">Workflow simulation</p>
+  <div class="stack measure-wide">
+    <h2>Watch a run under both outcomes</h2>
+    <p><b>Pass 1</b> replays the retained pilot of 2026-11-08 — real recorded values, ending in
+    <code>none_measured</code>. <b>Pass 2</b> is illustrative and labelled as such on every frame:
+    byte-identical input produces both options, and a clean framing flip then fails to clear its
+    own noise floor. That second case is the hardest thing this view has to render, and the one
+    the web lane calls the single highest-value visual in the whole design.</p>
+  </div>
+
+  <div style="margin-top:30px">
+    <div class="banner-illus" id="illus-banner" hidden>
+      <span>▲</span><span>Illustrative — not measured. Constructed to exercise the view.</span>
+    </div>
+    <div class="term">
+      <div class="term-bar">
+        <span class="dot live"></span><span class="dot"></span><span class="dot"></span>
+        <span class="grow"></span>
+        <span id="sim-phase">plan</span>
+      </div>
+      <div class="term-body"><pre id="sim-pre"></pre></div>
+    </div>
+    <div class="sim-controls">
+      <button class="btn primary" type="button" id="sim-play">Play</button>
+      <button class="btn" type="button" id="sim-step">Step</button>
+      <button class="btn" type="button" id="sim-reset">Reset</button>
+      <input class="scrub" type="range" id="sim-scrub" min="0" max="1" value="0" step="1" aria-label="Scrub run">
+      <span class="frame-read" id="sim-read">frame 0</span>
+      <span class="pass-switch" role="group" aria-label="Scenario">
+        <button class="btn" type="button" data-pass="0" aria-pressed="true">Pilot</button>
+        <button class="btn" type="button" data-pass="1" aria-pressed="false">Illustrative</button>
+      </span>
+    </div>
+    <p class="term-cap measure-wide">Every frame is a recorded state. Nothing between two states is
+    drawn — the same rule the interactive lane sets for itself: no animation that outruns the data.
+    Under <code>prefers-reduced-motion</code> this opens on the final frame and never autoplays.</p>
+    <p class="term-cap measure-wide"><b>One caveat on reuse:</b> <code>variance</code> and
+    <code>delta</code> appear in these frames and nowhere in <code>runner/</code>. They are proposed
+    display fields, not schema — no scalar of either kind is computed anywhere in the codebase. The
+    numeric band is the part of this design that cannot be built as drawn.</p>
+  </div>
+</section>
+
+<section class="wrap">
+  <p class="eyebrow">Progress</p>
+  <div class="stack measure-wide">
+    <h2>What makes a bar load-bearing instead of theatrical</h2>
+    <p>The test is simple: if the bar is wrong, would the user be misled about something that
+    matters? A bar that cannot be wrong is decoration. LANTERN happens to have one genuinely
+    excellent case and six fake ones.</p>
+  </div>
+  <div class="tscroll" style="margin-top:28px">
+    <table>
+      <thead><tr><th>Element</th><th>Verdict</th><th>Reason</th></tr></thead>
+      <tbody>
+        <tr><td class="m">████░░░░ 12/20 attempts</td><td><span class="mark yes">keep</span></td>
+          <td>Determinate against a denominator frozen by <code>expand</code> before the first call.
+          It can be wrong, and wrongness would be visible.</td></tr>
+        <tr><td class="m">called 12 · resumed 0 · left 8</td><td><span class="mark yes">keep</span></td>
+          <td>Without the split, a resumed run shows a bar at 100% having made no model call.
+          This is the single most misleading thing a naive bar would do here.</td></tr>
+        <tr><td class="m">~10 s left · 1.2 s/attempt</td><td><span class="mark yes">keep</span></td>
+          <td>Sequential, single-model, observed mean — the estimate is defensible. Print the rate
+          beside it so the reader can see what the estimate is made of.</td></tr>
+        <tr><td class="m">noise floor ✓ complete at 8/20</td><td><span class="mark yes">keep</span></td>
+          <td>Arm-major order makes this a real milestone, not a label. It is the moment the run
+          becomes interpretable at all.</td></tr>
+        <tr><td class="m">arms ✓✓✓✓ ✓✓✓✓ ✓✓·· ····</td><td><span class="mark yes">keep</span></td>
+          <td>Per-arm completion at a glance, and it exposes <em>which</em> arm is incomplete —
+          which is what the masked effect panel needs to cite.</td></tr>
+        <tr><td class="m">⠋ Analysing…</td><td><span class="mark no">cut</span></td>
+          <td><code>summarize</code> on 20 records is sub-millisecond. A spinner here animates
+          nothing and implies work that is not happening.</td></tr>
+        <tr><td class="m">████░░░░ validating cases</td><td><span class="mark no">cut</span></td>
+          <td>Finishes before the first frame renders. A bar that only ever shows 100% has taught
+          the reader to ignore bars.</td></tr>
+        <tr><td class="m">flips: 2 ▲ (live)</td><td><span class="mark no">cut</span></td>
+          <td>An effect on a partial denominator, displayed above its own noise floor. This is the
+          exact misreading the project exists to prevent.</td></tr>
+        <tr><td class="m">confidence ▓▓▓▓▓░░ 71%</td><td><span class="mark no">cut</span></td>
+          <td>No such quantity is computed anywhere. <code>analysis.py</code> reports flip, stable
+          and unresolved counts; inventing a bar for it would be fabrication with a progress-bar
+          costume on.</td></tr>
+        <tr><td class="m">tokens ████░ 312/512</td><td><span class="mark part">later</span></td>
+          <td>Honest only once an adapter reports it. The local adapter's
+          <code>truncated_by_limit</code> is a boolean, so today this bar would be two states
+          wearing a gradient.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top:34px">
+    <div class="mock-head">
+      <span class="tag chosen">The resume case</span>
+      <span class="src">the same run, twice interrupted</span>
+    </div>
+    <div class="term"><div class="term-bar"><span class="dot"></span><span class="grow"></span><span>lantern run --run-id local-pilot-01</span></div><div class="term-body"><pre id="mock-resume"></pre></div></div>
+    <p class="term-cap measure-wide">Twelve attempts are already on disk, so twelve are skipped
+    without a single model call. The one-quantity bar reports 60% of the work done in forty
+    milliseconds — it is not lying about the schedule, it is lying about the work. Splitting the
+    fill costs one character class and makes the bar describe what actually happened.</p>
+  </div>
+</section>
+
+<section class="wrap">
+  <p class="eyebrow">Adversarial review · new direction</p>
+  <div class="stack measure-wide">
+    <h2>Seven ways the new direction breaks, and the repair for each</h2>
+    <p>Taken at its strongest: a harness-native terminal view with real progress and a Geass
+    palette is the right instinct, and it beats the standing proposal on the thing that matters
+    most — the user is not left staring at a silent prompt. These are the failures it has to
+    survive to be worth building.</p>
+  </div>
+
+  <div style="margin-top:34px">
+    <div class="finding">
+      <div><span class="fid">B·1</span><br><span class="sev blocking">Blocking</span></div>
+      <div>
+        <h3>A full-screen TUI is invisible to the harness it was designed for</h3>
+        <p>This is the sharpest objection, because it comes from the direction's own premise. An
+        alternate-screen view — ratatui, Textual, anything that repaints — writes escape sequences,
+        overwrites its own history and takes stdin. Run it inside Claude Code and the harness
+        captures a smear of control codes; scrollback retains nothing; <code>grep</code> has
+        nothing to match. "Harness-native" and "dashboard" are in direct conflict.</p>
+        <div class="ev"><span class="lbl">Evidence</span><span>the premise itself · terminal capability, not repository state</span></div>
+        <div class="repair"><span class="lbl">Repair</span>Read harness-native literally:
+        line-oriented, append-only, scrollback-safe, grep-able. Which is the shape
+        <code>attempts.jsonl</code> already has — the storage model and the display model agree.</div>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div><span class="fid">B·2</span><br><span class="sev blocking">Blocking</span></div>
+      <div>
+        <h3>A live effect panel breaks the project's one non-negotiable rule</h3>
+        <p>The standing rule is that the noise floor prints <em>above</em> the effect, and the
+        stated reason is that every misreading this project prevents begins with someone seeing an
+        effect before the variability it has to beat. A dashboard that counts flips as attempts land
+        shows a number computed on a denominator that is still growing — against the spirit of
+        <em>denominators cannot shrink</em>, which the codebase enforces by making records
+        append-only.</p>
+        <div class="ev"><span class="lbl">Evidence</span><span>Interface.md § design rules · recording.append · analysis.py:177</span></div>
+        <div class="repair"><span class="lbl">Repair</span>During the run, print schedule progress
+        and outcome buckets only. The effect and contrast panels are <em>present but masked</em>,
+        citing what is missing: <code>withheld · framing 2/4 · rerun floor complete</code>. The mask
+        is the best teaching surface in the whole interface — a reader who is refused a number once,
+        with a reason, has learned the rule.</div>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div><span class="fid">B·3</span><br><span class="sev serious">Serious</span></div>
+      <div>
+        <h3>A resumed run's progress bar is theatrical by accident</h3>
+        <p><code>cli.py:270</code> increments <code>skipped</code> and continues without touching
+        the model. Resume twelve of twenty attempts and a single-quantity bar leaps to 60% instantly,
+        then crawls — reporting elapsed work that never happened.</p>
+        <div class="ev"><span class="lbl">Evidence</span><span>runner/cli.py:270 · <code>resumed</code> field, cli.py:370</span></div>
+        <div class="repair"><span class="lbl">Repair</span>The bar carries three quantities, and the
+        fill distinguishes them: resumed segments drawn dim, called segments drawn in violet,
+        remaining as the track. The legend reads <code>called 8 · resumed 12 · left 0</code>.</div>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div><span class="fid">B·4</span><br><span class="sev serious">Serious</span></div>
+      <div>
+        <h3>Geass crimson collides with semantic crimson</h3>
+        <p>Crimson and gold are already assigned to flip and unresolved. Promote crimson to chrome
+        and the status marker loses its alarm value — covered in full in the palette section above,
+        with both renderings side by side.</p>
+        <div class="ev"><span class="lbl">Evidence</span><span>Interface.md § design rules · frontend/styles.css <code>--flip</code>, <code>--unresolved</code></span></div>
+        <div class="repair"><span class="lbl">Repair</span>Chrome is obsidian, violet, bone, dim.
+        Crimson and gold are reserved. Glyphs stay mandatory; <code>NO_COLOR</code> and non-TTY
+        stdout drop colour entirely without losing a single distinction.</div>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div><span class="fid">B·5</span><br><span class="sev serious">Serious</span></div>
+      <div>
+        <h3>A TUI framework spends the one property that makes LANTERN installable</h3>
+        <p>ratatui is Rust. Textual and Rich are pip dependencies. The roadmap explicitly names
+        stdlib-only as a distribution <em>advantage</em> and <code>frontend/</code> is zero-dependency
+        with no build step on purpose. A determinate bar, a carriage return and an ANSI colour table
+        are about sixty lines of standard library.</p>
+        <div class="ev"><span class="lbl">Evidence</span><span>Roadmap §A.4 · policy §12 — every abstraction must solve a demonstrated problem</span></div>
+        <div class="repair"><span class="lbl">Repair</span>Write it in the standard library. The
+        constraint is also what forces the line-oriented form, which is the form that was right
+        anyway.</div>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div><span class="fid">B·6</span><br><span class="sev serious">Serious</span></div>
+      <div>
+        <h3>A live view risks becoming a third derivation path</h3>
+        <p>The rule is that if the lanes ever disagree, the export is authority and the renderer is
+        wrong. A view that computes its own in-flight numbers from records as they land is a third
+        place where <code>flip</code> gets defined — after <code>analysis.summarize</code> and
+        <code>frontend/app.js</code>. Three implementations of one rule is two too many.</p>
+        <div class="ev"><span class="lbl">Evidence</span><span>Interface.md § how the two lanes relate · export.py:build_export</span></div>
+        <div class="repair"><span class="lbl">Repair</span>The ledger renders
+        <code>analysis.summarize</code> output and nothing else. Mid-run it calls the same function
+        on the records so far and displays only the fields whose denominators are complete —
+        a projection, never a second derivation.</div>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div><span class="fid">B·7</span><br><span class="sev minor">Scope</span></div>
+      <div>
+        <h3>The view needs an effect state the analysis layer cannot produce</h3>
+        <p>Pass 2 of the simulation ends in <code>inconclusive</code> — a flip that does not clear
+        its own noise floor. <code>analysis.Effect</code> has no such state: it is a closed enum of
+        <code>measured</code>, <code>none_measured</code> and <code>insufficient</code>. And the
+        deeper problem is upstream of the naming — <code>Effect</code> is decided from the framing
+        pair alone, so <b>the rerun arm never enters the verdict at all</b>. The floor is a number
+        printed beside the result, not a gate the result passed. A band drawn to imply otherwise
+        overstates what the code does.</p>
+        <div class="ev"><span class="lbl">Evidence</span><span>analysis.py:49 — enum · analysis.py:304 — effect decided from framing pairs only</span></div>
+        <div class="repair"><span class="lbl">Repair</span>Do not invent the state in the renderer.
+        Until <code>analysis.py</code> produces it, the ledger prints the floor and the contrast
+        adjacently and withholds a verdict — exactly as the illustrative pass does. Adding the state
+        is an analysis change and belongs in the statistics work, not in the interface.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <p class="eyebrow">Adversarial review · standing proposal</p>
+  <div class="stack measure-wide">
+    <h2>And four ways the proposal already on the table breaks</h2>
+  </div>
+  <div style="margin-top:34px">
+    <div class="finding">
+      <div><span class="fid">A·1</span><br><span class="sev serious">Serious</span></div>
+      <div>
+        <h3>It is silent for the entire time the user is waiting</h3>
+        <p>A static report is a thing that exists after the fact. The 25 seconds of nothing between
+        <code>RUN_ID=</code> and the final JSON blob is the worst moment in the current CLI, and the
+        proposal does not mention it. This is the gap the new direction correctly identifies.</p>
+        <div class="ev"><span class="lbl">Evidence</span><span>cli.py:191 → cli.py:363 · execution.json wall_seconds</span></div>
+      </div>
+    </div>
+    <div class="finding">
+      <div><span class="fid">A·2</span><br><span class="sev blocking">Blocking</span></div>
+      <div>
+        <h3>Its arms table hides within-arm disagreement</h3>
+        <p>The mockup's <code>choices</code> column reads <code>route-west x4</code>. With
+        disagreement it becomes <code>route-west x3, route-east x1</code> — and a reader has no cue
+        that the pair is consequently <em>unresolved</em>. <code>_usable_choice</code> refuses to
+        vote precisely so that variability is not averaged away; a column that collapses an arm to
+        one cell quietly re-averages it in the renderer.</p>
+        <div class="ev"><span class="lbl">Evidence</span><span>analysis.py:177 <code>_usable_choice</code> · Interface.md Lane 1 mockup</span></div>
+        <div class="repair"><span class="lbl">Repair</span>An arm with disagreement gets its own
+        marked line: <code>[?] within-arm disagreement → pair unresolved</code>, gold, with the
+        split spelled out. Direction C adopts this.</div>
+      </div>
+    </div>
+    <div class="finding">
+      <div><span class="fid">A·3</span><br><span class="sev serious">Serious</span></div>
+      <div>
+        <h3>The terminal lane gets no noise-floor visual at all</h3>
+        <p>The interactive lane's shaded variance band is described as the single highest-value
+        visual in the whole design — it makes the central caveat impossible to miss with no text.
+        The terminal lane reduces that to one variance number on one line. In monospace the band is
+        trivially renderable, and it is where the new direction's "pretty but honest" instinct
+        genuinely wins.</p>
+        <div class="ev"><span class="lbl">Evidence</span><span>Interface.md Lane 2 § worth building</span></div>
+        <div class="repair"><span class="lbl">Repair</span>One ASCII band, printed once, in the
+        report phase. Pass 2 of the simulation shows it carrying the whole verdict.</div>
+      </div>
+    </div>
+    <div class="finding">
+      <div><span class="fid">A·4</span><br><span class="sev minor">Keep</span></div>
+      <div>
+        <h3>Four things in it are right and should survive unchanged</h3>
+        <p>The <code>SOURCE</code> footer that turns reading into using. The <code>--format
+        json|csv|tsv</code> taps so the printed summary is also the piped one. The header label that
+        cannot be cropped out of a screenshot. And <code>unknown</code> rendered as the word with its
+        reason attached, never a blank, a dash or a zero. Direction C inherits all four — it changes
+        when the terminal speaks, not what it is honest about.</p>
+        <div class="ev"><span class="lbl">Evidence</span><span>Interface.md Lane 1 § design rules, § the "use it yourself" path</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <p class="eyebrow">Scored</p>
+  <div class="stack measure-wide">
+    <h2>Each form against the project's own invariants</h2>
+    <p>Not general UX criteria — the rules this repository already enforces in code or states as
+    non-negotiable. A direction that scores badly here is not merely less pretty; it contradicts
+    something the project has already decided.</p>
+  </div>
+  <div class="tscroll" style="margin-top:28px">
+    <table>
+      <thead><tr><th>Invariant</th><th class="num">A · static</th><th class="num">B · dashboard</th><th class="num">C · ledger</th></tr></thead>
+      <tbody>
+        <tr><td>Noise floor is on screen before any effect</td><td class="num"><span class="mark yes">yes</span></td><td class="num"><span class="mark no">no</span><br><span class="m">partial denominator</span></td><td class="num"><span class="mark yes">yes</span><br><span class="m">order enforces it</span></td></tr>
+        <tr><td>Within-arm disagreement stays visible</td><td class="num"><span class="mark no">no</span><br><span class="m">A·2</span></td><td class="num"><span class="mark part">partial</span></td><td class="num"><span class="mark yes">yes</span></td></tr>
+        <tr><td>Glyphs carry meaning; colour only enhances</td><td class="num"><span class="mark yes">yes</span></td><td class="num"><span class="mark part">at risk</span><br><span class="m">B·4</span></td><td class="num"><span class="mark yes">yes</span></td></tr>
+        <tr><td><code>unknown</code> renders as the word, with reason</td><td class="num"><span class="mark yes">yes</span></td><td class="num"><span class="mark part">cramped</span></td><td class="num"><span class="mark yes">yes</span></td></tr>
+        <tr><td>Every block names its source file</td><td class="num"><span class="mark yes">yes</span></td><td class="num"><span class="mark no">no room</span></td><td class="num"><span class="mark yes">yes</span></td></tr>
+        <tr><td>One derivation path; export is authority</td><td class="num"><span class="mark yes">yes</span></td><td class="num"><span class="mark no">third path</span><br><span class="m">B·6</span></td><td class="num"><span class="mark yes">yes</span><br><span class="m">projection only</span></td></tr>
+        <tr><td>Zero dependencies, no build step</td><td class="num"><span class="mark yes">yes</span></td><td class="num"><span class="mark no">framework</span><br><span class="m">B·5</span></td><td class="num"><span class="mark yes">yes</span><br><span class="m">stdlib</span></td></tr>
+        <tr><td>Readable by an agent harness / in scrollback</td><td class="num"><span class="mark yes">yes</span></td><td class="num"><span class="mark no">no</span><br><span class="m">B·1</span></td><td class="num"><span class="mark yes">yes</span><br><span class="m">same bytes</span></td></tr>
+        <tr><td>The wait is visible while it happens</td><td class="num"><span class="mark no">no</span><br><span class="m">A·1</span></td><td class="num"><span class="mark yes">yes</span></td><td class="num"><span class="mark yes">yes</span></td></tr>
+        <tr><td>Simpler than the web lane</td><td class="num"><span class="mark yes">1 screen</span></td><td class="num"><span class="mark part">7 regions<br>live</span></td><td class="num"><span class="mark yes">3 phases</span><br><span class="m">vs 7 panes</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="term-cap measure-wide" style="margin-top:14px">The complexity budget is the last row and
+  it is a real constraint: <code>frontend/app.js</code> is 821 lines across 30 render functions
+  driving seven panes and a drill-down. Three printed phases is the terminal lane doing less, on
+  purpose, without being cruder — refinement here means exact alignment, reserved colour and a
+  mask that explains itself, not more regions.</p>
+</section>
+
+<section class="wrap">
+  <p class="eyebrow">If approved</p>
+  <div class="stack measure-wide">
+    <h2>What Direction C would actually cost</h2>
+    <p>Stated as scope for review, not as queued work. This is interface architecture, so policy §4
+    applies and nothing below should be read as decided.</p>
+  </div>
+  <ul class="ledger-list measure-wide" style="margin-top:26px">
+    <li><span class="g">1</span><span><b>A <code>report</code> subcommand.</b> Renders
+      <code>analysis.summarize</code> in the report phase, with <code>--format
+      human|json|csv|tsv</code>. Today <code>analyze</code> prints indented JSON through
+      <code>_echo</code> and there is no human view at all.</span></li>
+    <li><span class="g">2</span><span><b>A progress writer in <code>cmd_run</code>'s loop.</b> One
+      carriage-return line to stderr per attempt, carrying called / resumed / remaining, the current
+      condition id, the observed rate, and the per-arm completion strip. Standard library only.</span></li>
+    <li><span class="g">3</span><span><b>Output-mode detection.</b> <code>stdout.isatty()</code>,
+      <code>NO_COLOR</code>, and a <code>--plain</code> override. Non-TTY drops colour and prints one
+      final line per phase instead of repainting, so a harness captures the same information as a
+      clean transcript.</span></li>
+    <li><span class="g">4</span><span><b>A masking rule, written once.</b> A panel is shown only when
+      its denominator is complete; otherwise it prints <code>withheld</code> plus the specific
+      missing arm. Derived from the condition set, not hand-maintained per panel.</span></li>
+    <li><span class="g">5</span><span><b>The ASCII noise-floor band.</b> One function, used once per
+      report. Pure projection of the rerun arm's distinct choices against the contrast delta.</span></li>
+  </ul>
+
+  <div class="callout gate measure-wide" style="margin-top:34px">
+    <span class="ttl">Approval gate · policy §4 and §12</span>
+    <p>Choosing between these forms is an interface-architecture decision, and item 2 touches
+    <code>cmd_run</code>'s control flow. This page is a recommendation for the lead's review: it
+    does not approve work, and nothing in the repository or the vault was modified to produce it.
+    <code>Reference/LANTERN Interface.md</code> still carries Lane 1 as written.</p>
+  </div>
+  <div class="callout measure-wide" style="margin-top:18px">
+    <span class="ttl">Sequencing note</span>
+    <p>None of this closes the grading seam, adds a case, or produces statistics — the three things
+    the roadmap puts ahead of everything else. The honest claim for Direction C is narrower: it makes
+    the measurement the project already performs legible while it happens, and readable by the agent
+    harness afterwards. If it competes for time with the grading contract decision, the grading
+    decision wins.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="wrap">
+  <p class="footmeta">
+    LANTERN · terminal interface direction · reviewed 2026-11-16<br>
+    Repository read at <code>main</code> @ <code>e5e7241</code>, clean working tree. Vault:
+    <code>Vaults/LANTERN</code> — 8 notes, unmodified.<br>
+    Pilot values from <code>evidence/local/pilot-2026-11-08/</code>:
+    <code>qwen2.5:1.5b-instruct</code> @ <code>65ec0654</code>, 20 attempts, 25.1 s,
+    effect <code>none_measured</code>, correctness <code>unknown</code>.<br>
+    Pass 2 of the simulation is constructed, labelled illustrative on every frame, and corresponds
+    to no recorded run.
+  </p>
+</footer>
+
+<script>
+/* ──────────────────────────────────────────────────────────────────────
+   Terminal renderer. Lines are authored with {key|text} segments so the
+   mockups stay readable as source. Nothing is interpolated: every frame
+   of the simulation is a discrete recorded state.
+   ────────────────────────────────────────────────────────────────── */
+var PAL = {
+  d: 't-dim', f: 't-faint', v: 't-vio', vb: 't-vio t-b',
+  c: 't-crim', cb: 't-crim t-b', g: 't-gold', gb: 't-gold t-b',
+  s: 't-stab', sb: 't-stab t-b', b: 't-b', w: 't-fg', wb: 't-fg t-b',
+  i: 't-inv', ci: 't-crim-i'
+};
+
+function esc(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function fmt(line) {
+  var out = '', i = 0, m, re = /\{([a-z]{1,2})\|([^}]*)\}/g;
+  while ((m = re.exec(line)) !== null) {
+    out += esc(line.slice(i, m.index));
+    out += '<span class="' + (PAL[m[1]] || '') + '">' + esc(m[2]) + '</span>';
+    i = m.index + m[0].length;
+  }
+  return out + esc(line.slice(i));
+}
+
+function paint(id, lines) {
+  var el = document.getElementById(id);
+  if (el) el.innerHTML = lines.map(fmt).join('\n');
+}
+
+var W = 66;
+function rule(label, cls) {
+  var c = cls || 'v';
+  var dashes = W - label.length - 1;
+  return '{' + (c === 'v' ? 'vb' : c + 'b') + '|' + label + '} {' + c + '|' +
+    new Array(Math.max(dashes, 2) + 1).join('─') + '}';
+}
+function pad(s, n) {
+  s = String(s);
+  while (s.length < n) s += ' ';
+  return s;
+}
+
+/* ── Shared header ────────────────────────────────────────────────── */
+function header(runId) {
+  return [
+    '{d|$} {wb|lantern run} {d|--case fixtures/cases/example-campus-transport.json --reruns 4}',
+    '{v|RUN_ID}{d|=}{w|' + runId + '}',
+    '',
+    '{wb|LANTERN}  {w|campus-transport}',
+    '{d|         qwen2.5:1.5b-instruct @ 65ec0654 · local · greedy t=0.0 seed=1}',
+    '{gb|         label: LOCAL OLLAMA RUN — correctness unknown}',
+    ''
+  ];
+}
+
+/* ── Hero: a run caught mid-flight at attempt 14 ──────────────────── */
+paint('hero-pre', [].concat(header('local-pilot-01'), [
+  rule('PLAN'),
+  '{d|  schedule} {w|20 attempts · 5 arms × 4 reruns}  {f|frozen before first call}',
+  '{d|  order   } {w|noise floor completes at 8 · framing at 16}',
+  '',
+  rule('RUN ✓ CHECKPOINT', 's'),
+  '{d|  noise floor complete at attempt 8 — the run is interpretable from here}',
+  '',
+  rule('NOISE FLOOR', 's'),
+  '{d|  unchanged_rerun }  {w|4/4 readable}   {w|1 distinct choice}   {w|variance 0.00}',
+  '{d|  floor  }{f|▏}{f|░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░}{f|▏} {w|0.00}',
+  '{d|  → a framing difference at or below this is not interpretable}',
+  '',
+  rule('RUN'),
+  '{v|  ██████████████}{f|░░░░░░}  {wb|14/20}   {d|called} {w|14} {d|· resumed} {w|0} {d|· left} {w|6}',
+  '{d|  now  }{w|framing · rerun 1}        {d|1.26 s/attempt · ~7 s left}',
+  '{d|  arms }{s|baseline ✓✓✓✓}  {s|rerun ✓✓✓✓}  {s|neutral ✓✓✓✓}  {w|framing ✓✓}{f|··}  {f|correction ····}',
+  '{d|  outcomes  }{w|decision 14 · unresolved 0 · failed 0}',
+  '',
+  '{d|  EFFECT  }{gb|[ withheld ]}  {g|framing 2/4 — denominator incomplete}',
+  '{d|           a flip count on a partial denominator is not a result}'
+]));
+
+/* ── Palette demonstration: reserved versus crimson-as-chrome ─────── */
+var palRows = [
+  ['framing     ', '[x] flip', 'route-west -> route-east'],
+  ['correction  ', '[=] stable', 'route-west -> route-west'],
+  ['neutral_edit', '[?] unresolved', 'within-arm disagreement']
+];
+paint('pal-good', [
+  '{vb|CONTRASTS} {v|──────────────────────────────────────────}',
+  '{d|  ' + palRows[0][0] + '}  {cb|' + palRows[0][1] + '}       {w|' + palRows[0][2] + '}',
+  '{d|  ' + palRows[1][0] + '}  {d|' + palRows[1][1] + '}     {d|' + palRows[1][2] + '}',
+  '{d|  ' + palRows[2][0] + '}  {gb|' + palRows[2][1] + '} {d|' + palRows[2][2] + '}',
+  '',
+  '{vb|EFFECT} {v|─────────────────────────────────────────────}',
+  '{d|  measured   }{w|1 flip / 2 resolved pairs}',
+  '{d|  floor      }{w|variance 0.00 — the flip clears it}'
+]);
+paint('pal-bad', [
+  '{cb|CONTRASTS} {c|──────────────────────────────────────────}',
+  '{c|  ' + palRows[0][0] + '}  {cb|' + palRows[0][1] + '}       {c|' + palRows[0][2] + '}',
+  '{c|  ' + palRows[1][0] + '}  {c|' + palRows[1][1] + '}     {c|' + palRows[1][2] + '}',
+  '{c|  ' + palRows[2][0] + '}  {cb|' + palRows[2][1] + '} {c|' + palRows[2][2] + '}',
+  '',
+  '{cb|EFFECT} {c|─────────────────────────────────────────────}',
+  '{c|  measured   }{c|1 flip / 2 resolved pairs}',
+  '{c|  floor      }{c|variance 0.00 — the flip clears it}'
+]);
+
+/* ── Direction A: the static report as proposed ───────────────────── */
+paint('mock-a', [
+  '{d|$} {wb|lantern report}',
+  '',
+  '{wb|LANTERN}  {w|campus-transport}                          {d|run} {w|local-pilot-01}',
+  '{d|         qwen2.5:1.5b-instruct @ 65ec0654 · local · greedy t=0.0 seed=1}',
+  '{gb|         label: LOCAL OLLAMA RUN — correctness unknown}',
+  '',
+  rule('NOISE FLOOR', 's'),
+  '{d|  unchanged_rerun }  {w|4/4 readable}    {w|1 distinct choice}    {w|variance 0.00}',
+  '{d|  → a framing difference at or below this is not interpretable}',
+  '',
+  rule('ARMS'),
+  '{d|  arm                n   readable  unresolved  failed   choices}',
+  '{w|  baseline           4   4         0           0        route-west x4}',
+  '{w|  unchanged_rerun    4   4         0           0        route-west x4}',
+  '{w|  neutral_edit       4   4         0           0        route-west x4}',
+  '{w|  framing            4   4         0           0        route-west x4}',
+  '{w|  correction         4   4         0           0        route-west x4}',
+  '',
+  rule('CONTRASTS'),
+  '{d|  framing      }{d|[=] stable}     {w|route-west -> route-west}',
+  '{d|                   recorded choices agree}',
+  '{d|  correction   }{d|[=] stable}     {w|route-west -> route-west}',
+  '{d|                   changes evidence by design; not a framing contrast}',
+  '',
+  rule('EFFECT'),
+  '{wb|  none_measured}          {w|0 flips / 1 resolved pair}',
+  '{d|  No framing effect was measured in these records. That is a}',
+  '{d|  reportable result, not a missing one.}',
+  '',
+  '{d|  correctness   }{gb|unknown}{d| on 20/20 — no frozen grading key exists}',
+  '{d|  coverage      }{w|20 registered · 20 definitive · 0 pending}',
+  '',
+  rule('SOURCE'),
+  '{d|  records   }{w|data/attempts/local.jsonl}        {d|20 lines, append-only}',
+  '{d|  export    }{w|frontend/data/export.json}',
+  '{d|  next      }{w|lantern report --format csv > arms.csv}'
+]);
+
+/* ── Direction B: the dashboard, caught at the moment it misleads ─── */
+paint('mock-b', [
+  '{v|┌─ }{wb|LANTERN}{v| ───────────────────────────────── }{w|campus-transport}{v| ─┐}',
+  '{v|│} {d|qwen2.5:1.5b-instruct @ 65ec0654}        {d|local · t=0.0 · seed 1} {v|│}',
+  '{v|├──────────────────────────┬───────────────────────────────────┤}',
+  '{v|│} {vb|ARMS}                     {v|│} {vb|CONTRASTS}                         {v|│}',
+  '{v|│}  {d|baseline   }{s|████}{w|  4}       {v|│}  {d|framing     }{cb|[x] flip}               {v|│}',
+  '{v|│}  {d|rerun      }{s|████}{w|  4}       {v|│}  {d|correction  }{d|[=] stable}             {v|│}',
+  '{v|│}  {d|neutral    }{s|████}{w|  4}       {v|│}                                   {v|│}',
+  '{v|│}  {d|framing    }{w|██}{f|··}{w|  2}       {v|│} {vb|EFFECT}                            {v|│}',
+  '{v|│}  {d|correction }{f|····}{w|  0}       {v|│}  {cb|flips 1 / 2 resolved}  {c|▲ live}      {v|│}',
+  '{v|├──────────────────────────┴───────────────────────────────────┤}',
+  '{v|│} {v|██████████████}{f|░░░░░░}  {wb|14/20}    {d|1.26 s/att · ~7 s left}     {v|│}',
+  '{v|└──────────────────────────────────────────────────────────────┘}',
+  '',
+  '{d|what the harness captures:}',
+  '{f|^[[?25l^[[2J^[[H^[[38;5;183m┌─ LANTERN ──^[[0m...^[[14;1H^[[2K^[[1m14/20^[[0m}',
+  '{f|^[[2J^[[H ... repaint 15 of 20 ... ^[[2J^[[H ... repaint 16 of 20 ...}'
+]);
+
+/* ── Direction C: the complete streaming ledger, at exit ──────────── */
+paint('mock-c', [].concat(header('local-pilot-01'), [
+  rule('PLAN'),
+  '{d|  schedule  }{w|20 attempts · 5 arms × 4 reruns}  {f|frozen before first call}',
+  '{d|  prompts   }{w|4 distinct SHA-256 digests across 20 conditions}',
+  '{d|  resume    }{w|0 already recorded · 20 to call}',
+  '{d|  order     }{w|noise floor completes at attempt 8 · framing at 16}',
+  '',
+  rule('RUN ✓', 's'),
+  '{s|  ████████████████████}  {wb|20/20}  {d|called} {w|20} {d|· resumed} {w|0} {d|· left} {w|0}',
+  '{d|  25.1 s · 1.26 s/attempt}',
+  '{d|  outcomes  }{w|decision 20 · unresolved 0 · failed 0}',
+  '',
+  rule('NOISE FLOOR', 's'),
+  '{d|  unchanged_rerun }  {w|4/4 readable}   {w|1 distinct choice}   {w|variance 0.00}',
+  '{d|  floor  }{f|▏░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░▏} {w|0.00}',
+  '{d|  → a framing difference at or below this is not interpretable}',
+  '',
+  rule('ARMS'),
+  '{d|  arm                n   readable  unresolved  failed   choices}',
+  '{w|  baseline           4   4         0           0        route-west x4}',
+  '{w|  unchanged_rerun    4   4         0           0        route-west x4}',
+  '{w|  neutral_edit       4   4         0           0        route-west x4}',
+  '{w|  framing            4   4         0           0        route-west x4}',
+  '{w|  correction         4   4         0           0        route-west x4}',
+  '',
+  rule('CONTRASTS'),
+  '{d|  framing     }{d|[=] stable}    {w|route-west -> route-west}   {d|delta 0.00}',
+  '{d|  effect  }{f|▏                                                ▏} {w|0.00}',
+  '{d|  correction  }{d|[=] stable}    {w|route-west -> route-west}',
+  '{d|               changes evidence by design; not a framing contrast}',
+  '',
+  rule('EFFECT'),
+  '{wb|  none_measured}          {w|0 flips / 1 resolved pair}',
+  '{d|  No framing effect was measured in these records. That is a}',
+  '{d|  reportable result, not a missing one.}',
+  '',
+  '{d|  correctness  }{gb|unknown}{d| on 20/20 — no frozen grading key exists}',
+  '{d|  coverage     }{w|20 registered · 20 definitive · 0 pending}',
+  '',
+  rule('SOURCE'),
+  '{d|  records  }{w|data/attempts/local.jsonl}       {d|20 lines, append-only}',
+  '{d|  export   }{w|frontend/data/export.json}',
+  '{d|  next     }{w|lantern report --format csv > arms.csv}'
+]));
+
+/* ── The resume case: why the bar carries three quantities ─────────── */
+paint('mock-resume', [
+  '{d|$} {wb|lantern run} {d|--run-id local-pilot-01 --reruns 4}   {f|# 12 already recorded}',
+  '',
+  '{cb|  THEATRICAL}  {d|one quantity}',
+  '{c|  ████████████}{f|░░░░░░░░}  {w|12/20}  {c|60% in 40 ms, no model called}',
+  '',
+  '{sb|  LOAD-BEARING}  {d|three quantities}',
+  '{f|  ▒▒▒▒▒▒▒▒▒▒▒▒}{v|██████}{f|░░}  {w|18/20}  {d|called} {w|6} {d|· resumed} {w|12} {d|· left} {w|2}',
+  '{f|  ▒▒ resumed from attempts.jsonl   }{v|██ called now   }{f|░░ remaining}'
+]);
+
+/* ──────────────────────────────────────────────────────────────────────
+   Workflow simulation. Two passes, each a list of discrete frames.
+   ────────────────────────────────────────────────────────────────── */
+var ARMS = [
+  { id: 'baseline',        label: 'baseline       ', strip: 'baseline' },
+  { id: 'unchanged_rerun', label: 'unchanged_rerun', strip: 'rerun' },
+  { id: 'neutral_edit',    label: 'neutral_edit   ', strip: 'neutral' },
+  { id: 'framing',         label: 'framing        ', strip: 'framing' },
+  { id: 'correction',      label: 'correction     ', strip: 'correction' }
+];
+
+var PASSES = [
+  {
+    name: 'pilot', runId: 'local-pilot-01', illustrative: false,
+    choices: {
+      baseline: ['W', 'W', 'W', 'W'], unchanged_rerun: ['W', 'W', 'W', 'W'],
+      neutral_edit: ['W', 'W', 'W', 'W'], framing: ['W', 'W', 'W', 'W'],
+      correction: ['W', 'W', 'W', 'W']
+    },
+    floorDistinct: 1, floorDelta: 0.00, framingDelta: 0.00,
+    framingVerdict: 'stable', effect: 'none_measured', secs: '25.1 s', rate: '1.26 s/attempt'
+  },
+  {
+    name: 'illustrative', runId: 'illus-floor-01', illustrative: true,
+    choices: {
+      baseline: ['W', 'W', 'W', 'W'], unchanged_rerun: ['W', 'E', 'W', 'E'],
+      neutral_edit: ['W', 'W', 'W', 'W'], framing: ['E', 'E', 'E', 'E'],
+      correction: ['W', 'W', 'W', 'W']
+    },
+    floorDistinct: 2, floorDelta: 1.00, framingDelta: 1.00,
+    framingVerdict: 'flip', effect: 'inconclusive', secs: '24.8 s', rate: '1.24 s/attempt'
+  }
+];
+
+var OPT = { W: 'route-west', E: 'route-east' };
+
+function schedule() {
+  var out = [];
+  for (var a = 0; a < ARMS.length; a++) {
+    for (var i = 0; i < 4; i++) out.push({ arm: ARMS[a], index: i });
+  }
+  return out;
+}
+var SCHED = schedule();
+
+function band(fillTo, marker, cls) {
+  var cells = 48, out = '', i;
+  for (i = 0; i < cells; i++) {
+    if (marker === i) out += '╳';
+    else if (i < fillTo) out += '█';
+    else out += ' ';
+  }
+  return '{f|▏}{' + cls + '|' + out + '}{f|▏}';
+}
+
+function armStrip(done) {
+  var parts = [], a, n, ticks, i, cls;
+  for (a = 0; a < ARMS.length; a++) {
+    n = Math.max(0, Math.min(4, done - a * 4));
+    ticks = '';
+    for (i = 0; i < 4; i++) ticks += i < n ? '✓' : '·';
+    cls = n === 4 ? 's' : (n > 0 ? 'w' : 'f');
+    parts.push('{' + cls + '|' + ARMS[a].strip + ' ' + ticks + '}');
+  }
+  return '{d|  arms }' + parts.join('  ');
+}
+
+function bar(done, total, width) {
+  var fill = Math.round(done / total * width), i, s = '';
+  for (i = 0; i < width; i++) s += i < fill ? '█' : '░';
+  return '{v|  ' + s.slice(0, fill) + '}{f|' + s.slice(fill) + '}';
+}
+
+function planBlock(p) {
+  return [
+    rule('PLAN'),
+    '{d|  schedule  }{w|20 attempts · 5 arms × 4 reruns}  {f|frozen before first call}',
+    '{d|  prompts   }{w|4 distinct SHA-256 digests across 20 conditions}',
+    '{d|  resume    }{w|0 already recorded · 20 to call}',
+    '{d|  order     }{w|noise floor completes at attempt 8 · framing at 16}',
+    ''
+  ];
+}
+
+function floorBlock(p) {
+  var choices = p.choices.unchanged_rerun, counts = { W: 0, E: 0 }, i, desc = [];
+  for (i = 0; i < choices.length; i++) counts[choices[i]]++;
+  if (counts.W) desc.push('route-west x' + counts.W);
+  if (counts.E) desc.push('route-east x' + counts.E);
+  var lines = [
+    rule('NOISE FLOOR', p.floorDistinct > 1 ? 'g' : 's'),
+    '{d|  unchanged_rerun }  {w|4/4 readable}   {' + (p.floorDistinct > 1 ? 'gb' : 'w') +
+      '|' + p.floorDistinct + ' distinct choice' + (p.floorDistinct > 1 ? 's' : '') +
+      '}   {w|variance ' + p.floorDelta.toFixed(2) + '}',
+    '{d|  floor  }' + band(Math.round(p.floorDelta * 48), -1, p.floorDistinct > 1 ? 'g' : 'f') +
+      ' {w|' + p.floorDelta.toFixed(2) + '}'
+  ];
+  if (p.floorDistinct > 1) {
+    lines.push('{g|  byte-identical input produced ' + desc.join(', ') + '}');
+    lines.push('{gb|  [?] }{g|the rerun arm has no single usable choice — no voting inside an arm}');
+    lines.push('{d|  → any framing difference at or below this is not interpretable}');
+  } else {
+    lines.push('{d|  → a framing difference at or below this is not interpretable}');
+  }
+  lines.push('');
+  return lines;
+}
+
+function runBlock(p, done, live) {
+  var cond = SCHED[Math.min(done, SCHED.length - 1)];
+  var counts = { decision: done, unresolved: 0, failed: 0 };
+  var framingDone = Math.max(0, Math.min(4, done - 12));
+  var left = 20 - done;
+  var lines;
+  if (!live) {
+    lines = [
+      rule('RUN ✓', 's'),
+      '{s|  ████████████████████}  {wb|20/20}  {d|called} {w|20} {d|· resumed} {w|0} {d|· left} {w|0}',
+      '{d|  ' + p.secs + ' · ' + p.rate + '}',
+      '{d|  outcomes  }{w|decision 20 · unresolved 0 · failed 0}',
+      ''
+    ];
+    return lines;
+  }
+  lines = [
+    rule('RUN'),
+    bar(done, 20, 20) + '  {wb|' + done + '/20}   {d|called} {w|' + done +
+      '} {d|· resumed} {w|0} {d|· left} {w|' + left + '}',
+    '{d|  now  }{w|' + cond.arm.id + ' · rerun ' + cond.index + '}' +
+      new Array(Math.max(2, 18 - cond.arm.id.length) + 1).join(' ') +
+      '{d|' + p.rate + ' · ~' + Math.max(0, Math.round(left * 1.25)) + ' s left}',
+    armStrip(done),
+    '{d|  outcomes  }{w|decision ' + counts.decision + ' · unresolved 0 · failed 0}',
+    ''
+  ];
+  if (done < 16) {
+    lines.push('{d|  EFFECT  }{gb|[ withheld ]}  {g|framing ' + framingDone +
+      '/4 — denominator incomplete}');
+    lines.push('{d|           a flip count on a partial denominator is not a result}');
+  } else {
+    lines.push('{d|  EFFECT  }{gb|[ withheld ]}  {g|held until the run exits}');
+    lines.push('{d|           the contrast is complete; the report prints below}');
+  }
+  lines.push('');
+  return lines;
+}
+
+function armsBlock(p) {
+  var lines = [rule('ARMS'), '{d|  arm                n   readable  unresolved  failed   choices}'];
+  for (var a = 0; a < ARMS.length; a++) {
+    var ch = p.choices[ARMS[a].id], counts = { W: 0, E: 0 }, i, parts = [];
+    for (i = 0; i < ch.length; i++) counts[ch[i]]++;
+    if (counts.W) parts.push('route-west x' + counts.W);
+    if (counts.E) parts.push('route-east x' + counts.E);
+    var split = parts.length > 1;
+    lines.push('{' + (split ? 'g' : 'w') + '|  ' + pad(ARMS[a].id, 19) + '4   4         0           0        ' +
+      parts.join(', ') + '}');
+    if (split) {
+      lines.push('{gb|                     [?] }{g|within-arm disagreement → this arm has no usable choice}');
+    }
+  }
+  lines.push('');
+  return lines;
+}
+
+function contrastBlock(p) {
+  var flip = p.framingVerdict === 'flip';
+  var baseOpt = OPT[p.choices.baseline[0]];
+  var framingOpt = OPT[p.choices.framing[0]];
+  var marker = Math.min(47, Math.round(p.framingDelta * 47));
+  var lines = [
+    rule('CONTRASTS'),
+    '{d|  framing     }{' + (flip ? 'cb' : 'd') + '|[' + (flip ? 'x' : '=') + '] ' +
+      (flip ? 'flip  ' : 'stable') + '}    {w|' + baseOpt + ' -> ' + framingOpt +
+      '}   {d|delta ' + p.framingDelta.toFixed(2) + '}',
+    '{d|  effect  }' + band(0, marker, flip ? 'c' : 'f') + ' {w|' + p.framingDelta.toFixed(2) + '}'
+  ];
+  if (p.floorDelta >= p.framingDelta && p.floorDelta > 0) {
+    lines.push('{d|  floor   }' + band(Math.round(p.floorDelta * 48), -1, 'g') + ' {w|' +
+      p.floorDelta.toFixed(2) + '}');
+    lines.push('{gb|  [?] }{g|the measured flip does not clear its own noise floor}');
+  }
+  lines.push('{d|  correction  }{d|[=] stable}    {w|' + baseOpt + ' -> ' + OPT[p.choices.correction[0]] + '}');
+  lines.push('{d|               changes evidence by design; not a framing contrast}');
+  lines.push('');
+  return lines;
+}
+
+function effectBlock(p) {
+  if (p.effect === 'none_measured') {
+    return [
+      rule('EFFECT'),
+      '{wb|  none_measured}          {w|0 flips / 1 resolved pair}',
+      '{d|  No framing effect was measured in these records. That is a}',
+      '{d|  reportable result, not a missing one.}',
+      '',
+      '{d|  correctness  }{gb|unknown}{d| on 20/20 — no frozen grading key exists}',
+      '{d|  coverage     }{w|20 registered · 20 definitive · 0 pending}',
+      ''
+    ];
+  }
+  return [
+    rule('EFFECT', 'g'),
+    '{gb|  inconclusive}           {w|1 flip / 1 resolved pair · floor 1.00}',
+    '{d|  A flip was recorded, and byte-identical input already produced}',
+    '{d|  both options. The contrast does not clear its own noise floor, so}',
+    '{d|  this is neither an effect nor a null result.}',
+    '',
+    '{gb|  note }{g|analysis.Effect has no state for this. It reports measured,}',
+    '{g|       none_measured and insufficient only, and is decided from the}',
+    '{g|       framing pair alone — the rerun arm is never consulted, so the}',
+    '{g|       floor does not gate the verdict in code. A reader must do that.}',
+    '',
+    '{d|  correctness  }{gb|unknown}{d| on 20/20 — no frozen grading key exists}',
+    '{d|  coverage     }{w|20 registered · 20 definitive · 0 pending}',
+    ''
+  ];
+}
+
+function sourceBlock(p) {
+  return [
+    rule('SOURCE'),
+    '{d|  records  }{w|data/attempts/' + (p.illustrative ? 'illustrative' : 'local') +
+      '.jsonl}' + (p.illustrative ? '  ' : '       ') + '{d|20 lines, append-only}',
+    '{d|  export   }{w|frontend/data/export.json}',
+    '{d|  next     }{w|lantern report --format csv > arms.csv}'
+  ];
+}
+
+function buildFrames(p) {
+  var frames = [], i, base = header(p.runId);
+  frames.push({ phase: 'plan', lines: base.slice(0) });
+  frames.push({ phase: 'plan', lines: base.concat(planBlock(p)) });
+
+  var preFloor = base.concat(planBlock(p));
+  for (i = 1; i <= 8; i++) {
+    frames.push({ phase: 'run', lines: preFloor.concat(runBlock(p, i, true)) });
+  }
+  var checkpoint = preFloor.concat([
+    rule('RUN ✓ CHECKPOINT', 's'),
+    '{s|  ████████}{f|░░░░░░░░░░░░}  {wb|8/20}   {d|the noise-floor arm is complete}',
+    '{d|  the run becomes interpretable here, and not before}',
+    ''
+  ]).concat(floorBlock(p));
+  for (i = 8; i <= 20; i++) {
+    frames.push({ phase: 'run', lines: checkpoint.concat(runBlock(p, i, i < 20)) });
+  }
+  var done = checkpoint.concat(runBlock(p, 20, false));
+  frames.push({ phase: 'report', lines: done.concat(armsBlock(p)) });
+  frames.push({ phase: 'report', lines: done.concat(armsBlock(p), contrastBlock(p)) });
+  frames.push({ phase: 'report', lines: done.concat(armsBlock(p), contrastBlock(p), effectBlock(p)) });
+  frames.push({
+    phase: 'exit',
+    lines: done.concat(armsBlock(p), contrastBlock(p), effectBlock(p), sourceBlock(p))
+  });
+  return frames;
+}
+
+var FRAMES = [buildFrames(PASSES[0]), buildFrames(PASSES[1])];
+
+var simPass = 0, simIdx = 0, simTimer = null;
+var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+var elPre = document.getElementById('sim-pre');
+var elScrub = document.getElementById('sim-scrub');
+var elRead = document.getElementById('sim-read');
+var elPhase = document.getElementById('sim-phase');
+var elPlay = document.getElementById('sim-play');
+var elBanner = document.getElementById('illus-banner');
+
+function drawSim() {
+  var frames = FRAMES[simPass], f = frames[simIdx];
+  elPre.innerHTML = f.lines.map(fmt).join('\n');
+  elScrub.max = frames.length - 1;
+  elScrub.value = simIdx;
+  elRead.textContent = 'frame ' + simIdx + ' / ' + (frames.length - 1);
+  elPhase.textContent = f.phase === 'exit' ? 'exit 0' : f.phase;
+  elBanner.hidden = !PASSES[simPass].illustrative;
+}
+
+function stopSim() {
+  if (simTimer) { clearInterval(simTimer); simTimer = null; }
+  elPlay.textContent = 'Play';
+  elPlay.setAttribute('aria-pressed', 'false');
+}
+
+function playSim() {
+  if (simTimer) { stopSim(); return; }
+  if (simIdx >= FRAMES[simPass].length - 1) simIdx = 0;
+  elPlay.textContent = 'Pause';
+  elPlay.setAttribute('aria-pressed', 'true');
+  simTimer = setInterval(function () {
+    if (simIdx >= FRAMES[simPass].length - 1) { stopSim(); return; }
+    simIdx += 1;
+    drawSim();
+  }, 180);
+}
+
+elPlay.addEventListener('click', playSim);
+document.getElementById('sim-step').addEventListener('click', function () {
+  stopSim();
+  simIdx = Math.min(simIdx + 1, FRAMES[simPass].length - 1);
+  drawSim();
+});
+document.getElementById('sim-reset').addEventListener('click', function () {
+  stopSim();
+  simIdx = 0;
+  drawSim();
+});
+elScrub.addEventListener('input', function () {
+  stopSim();
+  simIdx = parseInt(elScrub.value, 10) || 0;
+  drawSim();
+});
+var passBtns = document.querySelectorAll('[data-pass]');
+Array.prototype.forEach.call(passBtns, function (btn) {
+  btn.addEventListener('click', function () {
+    stopSim();
+    simPass = parseInt(btn.getAttribute('data-pass'), 10);
+    simIdx = 0;
+    Array.prototype.forEach.call(passBtns, function (b) {
+      b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+    });
+    drawSim();
+    if (!reduced) playSim();
+  });
+});
+
+if (reduced) { simIdx = FRAMES[0].length - 1; }
+drawSim();
+
+/* ── Theme switch ─────────────────────────────────────────────────── */
+var themeBtns = document.querySelectorAll('[data-theme-set]');
+Array.prototype.forEach.call(themeBtns, function (btn) {
+  btn.addEventListener('click', function () {
+    var mode = btn.getAttribute('data-theme-set');
+    if (mode === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', mode);
+    Array.prototype.forEach.call(themeBtns, function (b) {
+      b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+    });
+    try { localStorage.setItem('lantern-theme', mode); } catch (e) { /* no storage */ }
+  });
+});
+try {
+  var saved = localStorage.getItem('lantern-theme');
+  if (saved) {
+    var target = document.querySelector('[data-theme-set="' + saved + '"]');
+    if (target) target.click();
+  }
+} catch (e) { /* no storage */ }
+</script>
