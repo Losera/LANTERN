@@ -16,6 +16,20 @@ Grading stays out of scope for that run: `runner/analysis.py` derives the
 framing effect from option choices alone, so correctness remains `unknown` and
 `parsing.grade` remains a refusing seam.
 
+## Terminal interface direction reviewed: November 16, 2026
+
+A design review compared the vault's standing terminal proposal with a
+harness-native alternative and recommends a third form, the streaming ledger.
+The review, the findings register, and the blockers are recorded in
+[terminal interface direction](interface-direction.md); the reviewed artifact is
+committed beside it.
+
+Nothing is approved and no code changed. Three blocking findings stand against the
+recommended form itself, the sharpest being that `runner/analysis.py` decides
+`Effect` from framing pairs alone, so the noise floor has no mechanical influence on
+the reported effect and cannot honestly be drawn as a gate. The review advances none
+of the four development gates and must not preempt the grading contract decision.
+
 ## Alpha batch implementation: November 8, 2026
 
 The lead approved the twenty-attempt schedule, both EOS tokens, a Python
