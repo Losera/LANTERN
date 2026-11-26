@@ -80,6 +80,12 @@ are irreversible. Nothing else.
 
 Rules for the text:
 
+- **No unsolicited Markdown.** Never deliver a briefing as a file. No `BRIEFING.md`,
+  no summary note, no published artifact, no new vault page unless the human asked
+  for one in this session. A briefing is terminal output; an unrequested document is
+  clutter that a later reader mistakes for a record. The same applies to the output
+  itself — keep it to the shape above and add no headings, tables, nested bullets, or
+  horizontal rules on your own initiative.
 - One fact per line. If a line needs a comma-spliced second clause, cut it.
 - Numbers over adjectives: "5 PRs green, unreviewed since Nov 9" beats
   "several PRs awaiting review".
