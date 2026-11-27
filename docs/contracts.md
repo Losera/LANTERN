@@ -191,6 +191,45 @@ own. `correctness` is only meaningful for a readable decision.
 `provenance.execution_site` has no default. A permitted local or API fallback
 is never presentable as an Alpha run; see [Alpha constraints](alpha.md).
 
+### One dataset holds one model and runtime
+
+`recording.IDENTITY` names the five provenance fields that together say what
+produced an attempt: `execution_site`, `model_id`, `model_revision`, `harness`,
+and `harness_version`. `recording.append_many` refuses a write that would put a
+second identity into one attempts file, and `recording.dataset_identity` reports
+a file that already holds more than one.
+
+The reason is in `runner/analysis.py`: it pairs attempts across arms and
+computes a single `effect`. Two models' attempts in one file would be averaged
+into an effect belonging to neither, and nothing downstream could notice,
+because every record would still be individually well formed.
+
+Two consequences follow from the unknown discipline above, and the first one
+reverses an earlier reading of it. An unobserved identity field is `null`, and
+**null is not a claim**: it neither matches a known value nor contradicts one.
+Only a field that two records both measured, and measured differently, is a
+conflict. The earlier rule — that an unknown identity was a *distinct*
+identity — made the honest encoding of a failure unstorable, because an attempt
+that never reached the model has no model to name and `cli.cmd_run` holds
+`ExecutionSite.UNKNOWN` for exactly as long as an attempt is still being made.
+A guard that refused those records would shrink the denominator
+`runner/analysis.py` counts over, which is the stronger rule and the one this
+file's own "every attempted run is written" requires.
+
+The second: a run decides this **before its first model call**, not at the write
+that follows one. `cli.cmd_run` reads the dataset's claim once and compares it
+against the adapter's declared identity, which costs one daemon version request
+and no inference. Refusing at the write would mean the attempt had already been
+made and could then no longer be recorded. `recording.append_many` keeps the
+same check as a backstop for other callers, and it still runs before any byte is
+written, so a refused batch leaves the file untouched — this module has no update
+or delete path that could undo a partial append.
+
+The same five fields gate bundle import in `runner/alpha_import.py`, which
+refuses an "incompatible model/runtime identity". The tuple is defined once in
+`runner/recording.py` so both paths enforce one rule rather than two that drift,
+following the same discipline the trace field sets use.
+
 ## Trace document
 
 The input format of the Lean design oracle, reproduced exactly. Field sets per

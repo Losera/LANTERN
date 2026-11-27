@@ -22,8 +22,8 @@ from runner.outcomes import Correctness, Outcome
 from runner.prompts import digest, render
 from runner import parsing
 from runner.recording import (
-    UNKNOWN, Unknown, AttemptRecord, append, append_many, make_attempt_record,
-    read_attempts,
+    IDENTITY, UNKNOWN, Unknown, AttemptRecord, append, append_many,
+    dataset_identity, identity_conflicts, make_attempt_record, read_attempts,
 )
 from runner.trace import IdSpace, ORACLE_CONFORMANCE, document, write_document
 from runner import trace as trace_mod
@@ -237,6 +237,50 @@ def cmd_run(args: argparse.Namespace) -> int:
         return 1
 
     adapter = UnapprovedAdapter(timeout_seconds=args.timeout_seconds)
+
+    # One model and one runtime per dataset, decided before the first model
+    # call rather than at the write that follows it. Refusing at the write
+    # would mean the attempt had already been made and could no longer be
+    # recorded, and every attempted run must stay in the denominator
+    # runner/analysis.py computes over. The version request this compares
+    # against costs no inference.
+    try:
+        claimed = dataset_identity(attempts_path)
+    except (OSError, ValueError) as exc:
+        print(f"FAIL: {exc}", file=sys.stderr)
+        return 1
+    if claimed is not None:
+        declared = adapter.declared_identity()
+        conflicts = identity_conflicts(claimed, declared)
+        if conflicts:
+            print(
+                f"FAIL: {attempts_path} already holds attempts from a different "
+                f"{', '.join(conflicts)}. Mixing them would let analysis pair "
+                "two runtimes into one effect. Use a separate --attempts file.",
+                file=sys.stderr,
+            )
+            return 1
+        # Fail closed on a field this dataset claims that this run could not
+        # establish. The daemon version is read once here and again by each
+        # attempt, so a request that fails now and succeeds later would compare
+        # nothing, generate, and only then discover the conflict -- at the
+        # write, after an attempt had been made and could no longer be
+        # recorded. Refusing now costs nothing, because nothing was attempted.
+        unestablished = tuple(
+            name for name, mine, theirs in zip(IDENTITY, declared, claimed)
+            if mine is None and theirs is not None
+        )
+        if unestablished:
+            print(
+                f"FAIL: could not establish this run's "
+                f"{', '.join(unestablished)}, which {attempts_path} already "
+                "claims. Refusing before any attempt rather than discovering a "
+                "mismatch at the write, where the attempt could not be "
+                "recorded. Retry, or use a separate --attempts file.",
+                file=sys.stderr,
+            )
+            return 1
+
     counts: dict[str, int] = {}
     appended = 0
     skipped = 0

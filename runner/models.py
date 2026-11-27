@@ -187,6 +187,27 @@ class UnapprovedAdapter:
         "additionalProperties": False,
     }
 
+    def declared_identity(self) -> tuple:
+        """This adapter's identity, for comparison before any generation.
+
+        Returns the five :data:`runner.recording.IDENTITY` values in wire form
+        and in order. ``harness_version`` belongs to the daemon, so it costs
+        one ``/api/version`` request and no inference; when the daemon cannot
+        be reached it stays ``None``, which claims nothing rather than guessing
+        a runtime. Letting a caller compare this before the first attempt is
+        what keeps an identity refusal from costing an unrecorded run.
+        """
+        version: str | None = None
+        try:
+            document = json.loads(self._request("/api/version"))
+            candidate = document.get("version") if isinstance(document, dict) else None
+            if isinstance(candidate, str) and candidate.strip():
+                version = candidate
+        except (AdapterExecutionError, ValueError, TypeError):
+            version = None
+        return (ExecutionSite.LOCAL.value, self.MODEL_ID, self.MODEL_REVISION,
+                self.name, version)
+
     def _request(self, path: str, body: dict[str, object] | None = None) -> bytes:
         """Make one bounded request and retain HTTP error bodies for callers."""
         data = None if body is None else json.dumps(body).encode("utf-8")
