@@ -1,5 +1,6 @@
 #!/bin/bash
 #SBATCH -p alpha
+#SBATCH --account=rpicourse
 #SBATCH --reservation=binghamton_hackathon
 #SBATCH --gres=gpu:1g.10gb:1
 #SBATCH -c 1
