@@ -109,7 +109,7 @@ recommending C; `carried` survives into C unchanged.
 | B·3 | serious | A resumed run's progress bar is theatrical by accident: twelve skipped attempts move a single-quantity bar to 60% in milliseconds with no model call | `runner/cli.py:270` | resolved by choice |
 | B·4 | serious | Geass crimson collides with semantic crimson. Promote crimson to chrome and a crimson flip marker stops meaning that something moved | [frontend styles](../frontend/styles.css) | resolved by choice |
 | B·5 | serious | A TUI framework spends the property that makes LANTERN trivially installable. A determinate bar, a carriage return and an ANSI table are standard library | [project brief](project.md), policy section 12 | resolved by choice |
-| B·6 | serious | A live view risks becoming a third place where `flip` is defined, after `analysis.summarize` and `frontend/app.js` | [export](../runner/export.py) | resolved by choice |
+| B·6 | serious | A live view risks becoming a third place where `flip` is *interpreted*, after `analysis.summarize`, which decides it, and `frontend/app.js`, which reads `verdict === 'flip'` off the export. Neither of those two defines it twice today; a third renderer deciding it independently is the risk | [export](../runner/export.py), `runner/analysis.py:304`, `frontend/app.js` | resolved by choice |
 | B·7 | minor | The view wants an effect state the analysis layer cannot produce | `runner/analysis.py:49` | open — folded into C·1 |
 
 ### Against direction C, the recommended form
@@ -126,7 +126,7 @@ built.
 | C·5 | serious | "Only the last block repaints" holds only on the happy path. Three cases are unspecified: an attempt failing after the floor block is already final above it; an interrupted run, which leaves a torn live block and no report phase; and a resumed run whose floor arm is already complete on disk, firing the checkpoint before any work | `runner/cli.py:270` | open |
 | C·6 | moderate | Progress and report land on different streams. Progress must go to stderr or it corrupts `--format json` on stdout, so "the same bytes serve human and agent" is really the same bytes on two streams, and redirecting stdout to a file loses the run | `runner/cli.py:191`, `runner/cli.py:40` | open |
 | C·7 | minor | The three-phase simplicity claim is measured on one case's happy path. Confounded conditions with their reasons, multi-case runs, and the boundaries block all need somewhere to print | `excluded` in [analysis](../runner/analysis.py), `BOUNDARIES` in [export](../runner/export.py) | open |
-| C·8 | minor | C advances none of the four development gates. It makes existing measurement legible; it must not preempt the grading contract decision | [status record](status.md) | open |
+| C·8 | minor | C advances none of the development gates the project has set for itself — the rubric and case/result contracts, the model and environment, and the first runtime slice, listed under `Next actions and unresolved gates` in the status record. It makes existing measurement legible; it must not preempt the grading contract decision | [status record](status.md) | open |
 
 ## Blockers
 
@@ -154,7 +154,8 @@ What must be settled before Direction C can be built, in order.
   [interface-direction.html](interface-direction.html).** It is a single
   self-contained page: three rendered terminal forms, a palette comparison, and a
   27-frame replay of a run under two outcomes. Open it directly in a browser; it needs
-  no server and no build.
+  no server, no build, and no network — it makes no external request of any kind and
+  renders in system fonts.
 - **Treat `variance` and `delta` in those mockups as proposed display fields, not
   schema.** They exist nowhere in `runner/`. That is finding C·2, and the page labels
   it.
