@@ -1,23 +1,64 @@
 # Current status and handoff
 
-## Next session: resolve the compute-agnostic claim overlap
+## Next session: decide the grading key contract
 
-Three reviewed pull requests are open and green; see the handoff below. The
-first action is not code. [Issue 17](https://github.com/Losera/LANTERN/issues/17)
-and [issue 68](https://github.com/Losera/LANTERN/issues/68) describe the same
-`execution_site` vocabulary decision, and issue 17 holds a claim the lead
-granted on November 7, 2026. Until that overlap is resolved, the compute-agnostic
-work in issues 69 and 70 cannot start without putting two writers on one
-decision, which is the pattern
-[issue 22](https://github.com/Losera/LANTERN/issues/22) tracks.
+The first action is a decision, not code:
+[issue 74](https://github.com/Losera/LANTERN/issues/74), how an approved frozen
+grading key reaches `parsing.grade`. It is the first item of the
+`Sprint 1 — grading contract and first graded measurement` milestone, and
+`grade(decision, case)` currently has no parameter through which a key could
+reach it, so the contract precedes any implementation. Behind it sit
+[issue 76](https://github.com/Losera/LANTERN/issues/76), an approved
+non-fictional case with a declared held-out split, and
+[issue 84](https://github.com/Losera/LANTERN/issues/84), the first graded
+measurement. Those three are the sprint; everything else open is explicit
+backlog.
+
+The compute-agnostic overlap this section previously named as the first action
+is resolved. Issue 17 was closed on November 26, 2026 as superseded by
+[issue 68](https://github.com/Losera/LANTERN/issues/68), which replaces the
+closed `ExecutionSite` enum rather than extending it, and
+[issue 70](https://github.com/Losera/LANTERN/issues/70), which implements a
+backend behind it. Issues 69 and 70 are therefore no longer blocked by a second
+writer on one decision. They remain backlog for this sprint by choice, not by
+obstruction.
 
 **Alpha cluster access is no longer standing.** The experiment is not blocked by
 that, because Alpha never produced a decision: its four retained bundles are a
 smoke test, an environment inventory, a `GPU inference ready.` generation, and a
 capacity diagnostic, and no `option_id` appears in any of them. Losing Alpha
-costs scale, not the experiment. Issues 10 and 33 can no longer reach their
-remaining acceptance; issue 37's blocker is dissolved and that issue becomes
-current rather than deferred.
+costs scale, not the experiment. Issues 10, 33 and 37 were closed on
+November 26, 2026 for that reason; the retained bundles stay valid as dated
+observations and must never be presented as current capability.
+
+The board was reconciled on November 26, 2026 under
+[issue 65](https://github.com/Losera/LANTERN/issues/65). Fourteen issues closed,
+each with a comment naming the merge commit, PR, or command that justified it:
+8, 18, 27, 33 and 19 as completed; 9, 11, 17, 21 and 37 as superseded by a
+better-framed issue; 2, 3, 22 and 10 as obsolete. Two retention branches were
+archived as tags before deletion - `archive/prompt-rendering-handoff`
+(`f22b89d`, which no branch held and nothing else made reachable) and
+`archive/grader-draft-b` (`e5cf45d`). The `teammate-a/b/c` slot assignments were
+retired while the labels and the claim process in
+[CONTRIBUTING](../CONTRIBUTING.md) were deliberately left intact.
+
+Open pull requests, and one warning. PR 78 merged as `43759e3`. PRs 79, 81, 82
+and 83 are documentation, retention, or tooling. **PR 80 must not merge in its
+current form.** Its guard refuses at the write boundary, after the model call,
+and `RecordError` subclasses `ValueError`, which `cmd_run` already catches around
+`append` - so a run whose provenance is honestly unmeasured aborts with the
+attempted record unwritten. In the PR 80 verification round a run with the Ollama
+daemon down recorded 0 of 5 attempts on that branch against 5 of 5 on `main`; the
+mechanism was confirmed by reading `recording.py:49` and `cli.py:338`, the counts
+were measured by that round rather than reproduced here. That is the denominator rule
+in [evaluation](evaluation.md), and it is the same acceptance sentence of
+issue 16 that the PR set out to satisfy.
+
+One repository gap is still open: `main` requires three status checks but has
+`enforce_admins` false, so an admin push can still bypass CI, which is how
+`e5cf45d` landed unreviewed. That is
+[issue 66](https://github.com/Losera/LANTERN/issues/66) and it needs a
+configuration change, not code.
 
 A real measurement now exists, and the earlier statement here that every attempt
 record was synthetic is superseded. The retained local pilot at
@@ -241,15 +282,24 @@ commit `990d953` already exists; its publication destination remains deferred.
 
 The malformed example fixture and the incomplete cue-format change that this
 section originally reported were repaired by
-[PR 49](https://github.com/Losera/LANTERN/pull/49); `docs/evaluation.md` still
-contains committed conflict markers at lines 44-57. B's approved case and frozen
-grading key, a condition-sensitive renderer, and an implemented grader remain
-dependencies. `prepare` is gated twice over and no experiment can start: the
-grading seam refuses first, so it reports "B's parser/grader is not ready", and the
-condition-sensitive renderer check behind it would refuse next because
-`prompts.render` still ignores its `condition`. These
-B- and C-owned paths are unchanged by A's implementation. Do not infer readiness from
-the new synthetic workflow tests or #26's closure.
+[PR 49](https://github.com/Losera/LANTERN/pull/49). B's approved case and frozen
+grading key, a condition-sensitive renderer, and an implemented grader were the
+dependencies as of that date. `prepare` was gated twice over and no experiment
+could start: the grading seam refused first, reporting "B's parser/grader is not
+ready", and the condition-sensitive renderer check behind it would have refused
+next. These B- and C-owned paths were unchanged by A's implementation. Do not
+infer readiness from the new synthetic workflow tests or #26's closure.
+
+> Three statements in the paragraph above are superseded, and they sat above this
+> file's historical-checkpoint disclaimer rather than below it, so they are
+> corrected here rather than left to be read as current. Verified 2026-11-26:
+> `docs/evaluation.md` contains **no** conflict markers - its `## Decision Rules`
+> section begins at line 28. `prompts.render` **is** condition-sensitive; it
+> branches on `condition.arm` and `tools/check_app.py` reports
+> `1 renderer arm checks`. The Lean design oracle **is** published, at
+> `Losera/lantern-formal`, commit `990d953`, so the deferred publication
+> destination recorded below is also superseded; issue 19 closed as completed.
+> The grading seam itself still refuses, which remains correct.
 
 The following sections are dated historical checkpoints. Their earlier pending
 diagnostic/publication statements do not supersede the newer evidence or live
