@@ -214,48 +214,123 @@ def _enum_value(value: object) -> object:
     return value.value if hasattr(value, "value") and not isinstance(value, Unknown) else value
 
 
-def _identity_of(provenance: object, where: str) -> tuple:
+EMPTY_IDENTITY = (None,) * len(IDENTITY)
+
+#: The ``execution_site`` value that means "not established". Kept as a
+#: literal so ``recording`` stays free of a ``models`` import, and asserted
+#: against ``models.ExecutionSite.UNKNOWN`` by the offline lane.
+UNCLEAR_SITE = "unknown"
+
+
+def _identity_of(provenance: object) -> tuple:
     """The IDENTITY values of one record's provenance, in a comparable form.
 
-    An unobserved field is ``None`` on the wire and is **not** treated as
-    matching a known value. Claiming one model per dataset is not possible when
-    a record cannot say which model produced it, so an unknown identity is a
-    distinct identity rather than a wildcard.
+    An unobserved field is ``None``, and ``None`` is **not a claim**: it
+    neither matches a known value nor contradicts one. An attempt that never
+    reached the model has no model to name, and provenance is ``null`` in that
+    record by design -- so reading it as a second identity would make the
+    honest encoding of a failure unstorable, and every attempted run must be
+    written. Conflicts are decided by :func:`identity_conflicts`, over the
+    fields two records both actually observed.
     """
     if not isinstance(provenance, dict):
-        raise RecordError(f"{where}: provenance must be an object")
-    return tuple(provenance.get(name) for name in IDENTITY)
+        return EMPTY_IDENTITY
+    values = tuple(provenance.get(name) for name in IDENTITY)
+    # execution_site has no default, so an unclear site is carried by the
+    # ExecutionSite.UNKNOWN member and reaches the wire as the string
+    # "unknown" rather than as null. That is this one field's way of spelling
+    # a gap -- its own documentation says the member exists so a record with
+    # unclear provenance can be stored honestly -- so it must compare as a
+    # gap. cli.cmd_run holds exactly this value while an attempt is still
+    # being made, which is every failed attempt's identity.
+    return (None if values[0] == UNCLEAR_SITE else values[0], *values[1:])
+
+
+def identity_conflicts(left: tuple, right: tuple) -> tuple[str, ...]:
+    """The IDENTITY field names both sides observed and disagree on.
+
+    Empty when either side left a field unobserved: a gap cannot disagree.
+    """
+    return tuple(
+        name for name, one, other in zip(IDENTITY, left, right)
+        if one is not None and other is not None and one != other
+    )
+
+
+def _merge_identity(left: tuple, right: tuple) -> tuple:
+    """One identity carrying every field either side observed."""
+    return tuple(one if one is not None else other
+                 for one, other in zip(left, right))
 
 
 def _describe(identity: tuple) -> str:
-    """Name an identity in an error, showing an unobserved field as unknown."""
+    """Name an identity in an error, distinguishing a gap from a datum.
+
+    An unobserved field prints bare as ``unknown``; a field measured as the
+    string ``"unknown"`` prints quoted. Rendering the two alike would turn a
+    gap into a datum inside the very message meant to explain one.
+    """
     return ", ".join(
-        f"{name}={'unknown' if value is None else value!r}"
+        f"{name}=" + ("unknown" if value is None else repr(value))
         for name, value in zip(IDENTITY, identity)
     )
 
 
 def dataset_identity(path: str | Path) -> tuple | None:
-    """The one model/runtime identity an existing dataset holds.
+    """The one model/runtime identity an existing dataset claims.
 
-    Returns ``None`` for a missing or empty file, which any identity may then
-    start. Raises if the file already holds more than one identity, so a
-    dataset that predates this check cannot pass silently.
+    Returns ``None`` for a missing or empty file, or for one whose records left
+    every identity field unobserved; any identity may then start it. The
+    identity returned carries every field the file observed anywhere, so a
+    dataset whose early attempts all failed still reports the model that later
+    produced a decision.
+
+    Raises if two records disagree on a field they both observed, so a dataset
+    that predates this check cannot pass silently. Line numbers are physical
+    lines, matching every other error this module raises.
+
+    This is the full audit. It reads the whole file, so call it once per run --
+    ``cli.cmd_run`` does, before its first attempt -- rather than once per
+    append.
     """
     path = Path(path)
     if not path.exists():
         return None
-    found: dict[tuple, int] = {}
-    for number, record in enumerate(read_attempts(path), start=1):
-        found.setdefault(_identity_of(record.get("provenance"), f"{path}:{number}"), number)
-    if len(found) > 1:
-        lines = sorted(found.values())
-        raise RecordError(
-            f"{path}: dataset already holds {len(found)} model/runtime identities, "
-            f"first differing at lines {lines[0]} and {lines[1]}: "
-            + " | ".join(_describe(i) for i in found)
-        )
-    return next(iter(found), None)
+    claim = EMPTY_IDENTITY
+    claimed_at = 0
+    for number, record in _read_numbered(path):
+        incoming = _identity_of(record.get("provenance"))
+        conflicts = identity_conflicts(claim, incoming)
+        if conflicts:
+            raise RecordError(
+                f"{path}: the records on lines {claimed_at} and {number} disagree "
+                f"on {', '.join(conflicts)}. Line {claimed_at} holds "
+                f"{_describe(claim)}; line {number} holds {_describe(incoming)}"
+            )
+        if claim == EMPTY_IDENTITY and incoming != EMPTY_IDENTITY:
+            claimed_at = number
+        claim = _merge_identity(claim, incoming)
+    return None if claim == EMPTY_IDENTITY else claim
+
+
+def _claimed_identity(path: Path) -> tuple:
+    """What a dataset already claims, read only as far as it takes to know.
+
+    ``append_many`` needs to know what the file claims, not whether the file
+    was internally consistent before this process touched it. That full audit
+    is :func:`dataset_identity`. Re-auditing the whole dataset on every append
+    made a run quadratic in its own length, for a guarantee the run had already
+    checked once. Stopping at the first fully observed identity keeps it linear:
+    2000 sequential appends measured 0.20 s here.
+    """
+    if not path.exists():
+        return EMPTY_IDENTITY
+    claim = EMPTY_IDENTITY
+    for _, record in _read_numbered(path):
+        claim = _merge_identity(claim, _identity_of(record.get("provenance")))
+        if all(value is not None for value in claim):
+            break
+    return claim
 
 
 def append(path: str | Path, record: AttemptRecord) -> Path:
@@ -266,31 +341,37 @@ def append(path: str | Path, record: AttemptRecord) -> Path:
 def append_many(path: str | Path, records: tuple[AttemptRecord, ...] | list[AttemptRecord]) -> Path:
     """Append several records in order, creating parent directories.
 
-    Refuses a write that would put a second model or runtime identity in one
-    dataset. The refusal happens before any byte is written, so a rejected
-    batch leaves the file exactly as it was; this module has no update or
-    delete path to undo a partial append with.
+    Refuses a write that would contradict what the dataset already claims
+    about its model or runtime. The refusal happens before any byte is written,
+    so a rejected batch leaves the file exactly as it was; this module has no
+    update or delete path to undo a partial append with.
+
+    A record that observed none of the identity fields -- a failed attempt,
+    which is exactly what must stay in the denominator -- contradicts nothing
+    and always appends. Only a field both sides measured, and measured
+    differently, is a conflict. ``cli.cmd_run`` checks the same thing once
+    before its first model call, so a run should never reach this refusal.
     """
     path = Path(path)
     if path.exists() and not path.is_file():
         raise RecordError(f"{path}: not a regular file")
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = []
-    identity = dataset_identity(path)
+    identity = _claimed_identity(path)
     for position, record in enumerate(records, start=1):
         if not isinstance(record, AttemptRecord):
             raise RecordError(f"expected AttemptRecord, got {type(record).__name__}")
         wire = record.as_dict()
-        incoming = _identity_of(wire.get("provenance"), f"record {position}")
-        if identity is None:
-            identity = incoming
-        elif incoming != identity:
+        incoming = _identity_of(wire.get("provenance"))
+        conflicts = identity_conflicts(identity, incoming)
+        if conflicts:
             raise RecordError(
-                f"{path}: record {position} would add a second model/runtime identity "
-                f"to this dataset. Dataset holds {_describe(identity)}; "
+                f"{path}: record {position} would contradict this dataset on "
+                f"{', '.join(conflicts)}. Dataset holds {_describe(identity)}; "
                 f"record {position} carries {_describe(incoming)}. "
                 "Write it to a separate attempts file."
             )
+        identity = _merge_identity(identity, incoming)
         line = json.dumps(wire, ensure_ascii=False, sort_keys=True)
         if "\n" in line:
             raise RecordError("a JSON line must not contain a newline")
@@ -301,12 +382,11 @@ def append_many(path: str | Path, records: tuple[AttemptRecord, ...] | list[Atte
     return path
 
 
-def read_attempts(path: str | Path) -> Iterator[dict[str, object]]:
-    """Yield decoded records in file order, reporting the offending line number.
+def _read_numbered(path: str | Path) -> Iterator[tuple[int, dict[str, object]]]:
+    """Yield ``(physical line number, record)`` in file order.
 
-    Records are returned as dictionaries rather than rebuilt objects: a file
-    written by an earlier schema version must remain readable for inspection
-    even when it can no longer be reconstructed.
+    Blank lines are skipped but still counted, so a reported line sends a
+    reader to the row they must actually repair.
     """
     path = Path(path)
     with path.open(encoding="utf-8") as handle:
@@ -320,4 +400,15 @@ def read_attempts(path: str | Path) -> Iterator[dict[str, object]]:
                 raise RecordError(f"{path}:{number}: invalid JSON: {exc}") from exc
             if not isinstance(decoded, dict):
                 raise RecordError(f"{path}:{number}: record must be an object")
-            yield decoded
+            yield number, decoded
+
+
+def read_attempts(path: str | Path) -> Iterator[dict[str, object]]:
+    """Yield decoded records in file order, reporting the offending line number.
+
+    Records are returned as dictionaries rather than rebuilt objects: a file
+    written by an earlier schema version must remain readable for inspection
+    even when it can no longer be reconstructed.
+    """
+    for _, record in _read_numbered(path):
+        yield record

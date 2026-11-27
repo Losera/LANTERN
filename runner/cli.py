@@ -22,8 +22,8 @@ from runner.outcomes import Correctness, Outcome
 from runner.prompts import digest, render
 from runner import parsing
 from runner.recording import (
-    UNKNOWN, Unknown, AttemptRecord, append, append_many, make_attempt_record,
-    read_attempts,
+    UNKNOWN, Unknown, AttemptRecord, append, append_many, dataset_identity,
+    identity_conflicts, make_attempt_record, read_attempts,
 )
 from runner.trace import IdSpace, ORACLE_CONFORMANCE, document, write_document
 from runner import trace as trace_mod
@@ -237,6 +237,29 @@ def cmd_run(args: argparse.Namespace) -> int:
         return 1
 
     adapter = UnapprovedAdapter(timeout_seconds=args.timeout_seconds)
+
+    # One model and one runtime per dataset, decided before the first model
+    # call rather than at the write that follows it. Refusing at the write
+    # would mean the attempt had already been made and could no longer be
+    # recorded, and every attempted run must stay in the denominator
+    # runner/analysis.py computes over. The version request this compares
+    # against costs no inference.
+    try:
+        claimed = dataset_identity(attempts_path)
+    except (OSError, ValueError) as exc:
+        print(f"FAIL: {exc}", file=sys.stderr)
+        return 1
+    if claimed is not None:
+        conflicts = identity_conflicts(claimed, adapter.declared_identity())
+        if conflicts:
+            print(
+                f"FAIL: {attempts_path} already holds attempts from a different "
+                f"{', '.join(conflicts)}. Mixing them would let analysis pair "
+                "two runtimes into one effect. Use a separate --attempts file.",
+                file=sys.stderr,
+            )
+            return 1
+
     counts: dict[str, int] = {}
     appended = 0
     skipped = 0

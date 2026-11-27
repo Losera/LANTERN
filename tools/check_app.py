@@ -406,7 +406,7 @@ def check_recording(errors: list[str], counts: Counter) -> None:
     from runner.models import ExecutionSite, Provenance
     from runner.outcomes import Correctness, Outcome
     from runner.recording import (
-        UNKNOWN, AttemptRecord, RecordError, append, read_attempts,
+        UNCLEAR_SITE, UNKNOWN, AttemptRecord, RecordError, append, read_attempts,
     )
 
     record = AttemptRecord(
@@ -481,11 +481,31 @@ def check_recording(errors: list[str], counts: Counter) -> None:
         if UNKNOWN is None:
             errors.append("recording: UNKNOWN must not be None")
 
+        # The dataset must actually claim a model before a rival one can
+        # contradict it. Two records that never observed a model_id claim
+        # nothing about which model ran, and a third naming one contradicts
+        # neither -- that is the point of the gap rule, not a hole in it.
+        claiming = AttemptRecord(
+            run_id="r", case_id="c", condition_id="c:baseline:1", arm=Arm.BASELINE,
+            attempt_id="c", operation_id="o", outcome=Outcome.TIMEOUT,
+            provenance=Provenance(execution_site=ExecutionSite.LOCAL,
+                                  model_id="the-approved-model",
+                                  harness="ollama", harness_version="0.40.7"),
+        )
+        try:
+            append(path, claiming)
+        except RecordError as exc:
+            errors.append(
+                f"recording: a first claiming record was refused ({exc}); the "
+                "identity guard must accept the model a dataset is started with"
+            )
+
         other = AttemptRecord(
             run_id="r", case_id="c", condition_id="c:baseline:0", arm=Arm.BASELINE,
             attempt_id="b", operation_id="o", outcome=Outcome.TIMEOUT,
             provenance=Provenance(execution_site=ExecutionSite.LOCAL,
-                                  model_id="a-different-model"),
+                                  model_id="a-different-model",
+                                  harness="ollama", harness_version="0.40.7"),
         )
         try:
             append(path, other)
@@ -497,10 +517,43 @@ def check_recording(errors: list[str], counts: Counter) -> None:
                 "existing dataset; runner/analysis.py pairs attempts across arms "
                 "and would average two models into one effect"
             )
-        if len(list(read_attempts(path))) != 2:
+        if len(list(read_attempts(path))) != 3:
             errors.append(
                 "recording: a refused append still changed the file; the "
                 "identity check must run before any byte is written"
+            )
+
+        # The regression that made this guard dangerous: cmd_run holds
+        # ExecutionSite.UNKNOWN while an attempt is still being made, so every
+        # failed attempt carried this identity. Refusing it meant the attempt
+        # was made and then not recorded.
+        failed_attempt = AttemptRecord(
+            run_id="r", case_id="c", condition_id="c:baseline:2", arm=Arm.BASELINE,
+            attempt_id="f", operation_id="o", outcome=Outcome.ERROR,
+            provenance=Provenance(execution_site=ExecutionSite.UNKNOWN),
+        )
+        try:
+            append(path, failed_attempt)
+        except RecordError as exc:
+            errors.append(
+                "recording: an attempt whose provenance was never observed was "
+                f"refused ({exc}); a failed attempt names no model, so it "
+                "contradicts none, and every attempted run must stay in the "
+                "denominator runner/analysis.py computes over"
+            )
+        else:
+            counts["unobserved identity accepted"] += 1
+        if len(list(read_attempts(path))) != 4:
+            errors.append(
+                "recording: a failed attempt did not reach the dataset; the "
+                "denominator must count every attempted run"
+            )
+
+        if UNCLEAR_SITE != ExecutionSite.UNKNOWN.value:
+            errors.append(
+                "recording: UNCLEAR_SITE no longer matches "
+                "models.ExecutionSite.UNKNOWN, so an unclear site would "
+                "compare as a measured one"
             )
     counts["recording checks"] += 1
 
@@ -1089,15 +1142,15 @@ class CheckerTests(unittest.TestCase):
 
     def test_recording_check_catches_a_mixed_dataset_identity(self):
         from runner import recording
-        original = recording.dataset_identity
-        recording.dataset_identity = lambda path: None
+        original = recording._claimed_identity
+        recording._claimed_identity = lambda path: recording.EMPTY_IDENTITY
         try:
             errors: list[str] = []
             check_recording(errors, Counter())
             self.assertTrue(
                 any("second model/runtime identity" in e for e in errors), errors)
         finally:
-            recording.dataset_identity = original
+            recording._claimed_identity = original
 
     def test_dataset_identity_reports_a_file_that_already_mixes_models(self):
         from runner import recording
@@ -1112,23 +1165,82 @@ class CheckerTests(unittest.TestCase):
             path.write_text("\n".join(rows) + "\n", encoding="utf-8")
             with self.assertRaises(recording.RecordError) as caught:
                 recording.dataset_identity(path)
-            self.assertIn("2 model/runtime identities", str(caught.exception))
+            self.assertIn("model_id", str(caught.exception))
             self.assertIn("lines 1 and 2", str(caught.exception))
 
-    def test_dataset_identity_treats_an_unknown_model_as_distinct(self):
+    def test_dataset_identity_reports_physical_line_numbers(self):
+        """A reader sent to the wrong row cannot repair the right one."""
+        from runner import recording
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "attempts.jsonl"
+            base = {"execution_site": "local", "model_revision": None,
+                    "harness": "ollama", "harness_version": "0.40.7"}
+            path.write_text(
+                "\n" + json.dumps({"provenance": dict(base, model_id="one")})
+                + "\n\n" + json.dumps({"provenance": dict(base, model_id="two")})
+                + "\n", encoding="utf-8")
+            with self.assertRaises(recording.RecordError) as caught:
+                recording.dataset_identity(path)
+            self.assertIn("lines 2 and 4", str(caught.exception))
+
+    def test_an_unobserved_identity_field_is_not_a_second_identity(self):
+        """A failed attempt names no model, so it contradicts none.
+
+        The denominator rule outranks naming a runtime an attempt never had:
+        every attempted run is written, failures included. Reading null as a
+        rival identity made the honest encoding of a failure unstorable.
+        """
         from runner import recording
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "attempts.jsonl"
             known = {"execution_site": "local", "model_id": "model-one",
                      "model_revision": None, "harness": "ollama",
                      "harness_version": "0.40.7"}
-            unknown = dict(known, model_id=None)
             path.write_text(
                 json.dumps({"provenance": known}) + "\n"
-                + json.dumps({"provenance": unknown}) + "\n", encoding="utf-8")
-            with self.assertRaises(recording.RecordError) as caught:
-                recording.dataset_identity(path)
-            self.assertIn("unknown", str(caught.exception))
+                + json.dumps({"provenance": dict(known, model_id=None)}) + "\n"
+                + json.dumps({"provenance": None}) + "\n", encoding="utf-8")
+            self.assertEqual(
+                recording.dataset_identity(path),
+                ("local", "model-one", None, "ollama", "0.40.7"))
+
+    def test_a_failed_attempt_appends_beside_a_successful_one(self):
+        """The regression that mattered: a run must not lose an attempt."""
+        from runner import recording
+        from runner.models import ExecutionSite, Provenance
+        from runner.outcomes import Outcome
+        from runner.conditions import Arm
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "attempts.jsonl"
+            for index, provenance in enumerate((
+                Provenance(execution_site=ExecutionSite.LOCAL,
+                           model_id="model-one", harness="ollama",
+                           harness_version="0.40.7"),
+                Provenance(execution_site=ExecutionSite.UNKNOWN),
+            )):
+                recording.append(path, recording.AttemptRecord(
+                    run_id="r", case_id="c", condition_id=f"c:baseline:{index}",
+                    arm=Arm.BASELINE, attempt_id=f"a{index}", operation_id="o",
+                    outcome=Outcome.ERROR, provenance=provenance))
+            self.assertEqual(len(list(recording.read_attempts(path))), 2)
+
+    def test_describe_separates_an_unobserved_field_from_a_measured_one(self):
+        from runner import recording
+        rendered = recording._describe(("unknown", None, None, None, None))
+        self.assertIn("execution_site='unknown'", rendered)
+        self.assertIn("model_id=unknown", rendered)
+        self.assertNotIn("model_id='unknown'", rendered)
+
+    def test_declared_identity_claims_nothing_when_the_daemon_is_unreachable(self):
+        from runner.models import AdapterExecutionError, UnapprovedAdapter
+        adapter = UnapprovedAdapter(timeout_seconds=1.0)
+        original = adapter._request
+        adapter._request = lambda *a, **k: (_ for _ in ()).throw(
+            AdapterExecutionError("daemon down"))
+        try:
+            self.assertIsNone(adapter.declared_identity()[4])
+        finally:
+            adapter._request = original
 
     def test_retained_datasets_hold_one_identity_each(self):
         from runner import recording
