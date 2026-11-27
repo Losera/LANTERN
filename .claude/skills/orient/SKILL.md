@@ -76,7 +76,8 @@ Exactly this shape:
 ```
 
 Then at most three `Risk:` lines, only for things that would cost real time or
-are irreversible. Nothing else.
+are irreversible. Then one closing line naming what you can expand on. Those
+three parts are the whole briefing; nothing else belongs in it.
 
 Rules for the text:
 
@@ -93,7 +94,8 @@ Rules for the text:
 - If no task is recorded or inferable, say so plainly and label any suggestion as
   a suggestion. Do not invent an active task.
 - State one important uncertainty rather than hedging every line.
-- Offer the detail; do not deliver it unasked. End with what you can expand on.
+- Offer the detail; do not deliver it unasked. The closing line described above is
+  where that offer goes, and it is the only place it goes.
 
 ## Attribution
 
