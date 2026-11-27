@@ -380,7 +380,8 @@ product runtime dependencies.
 7. [Research summary, attribution, and pinned sources](docs/research.md).
 8. [Current status and handoff](docs/status.md).
 9. [Handoff for the first real measurement](docs/measurement-handoff.md).
-10. [Contributor walkthrough](CONTRIBUTING.md).
+10. [Terminal interface direction and its findings register](docs/interface-direction.md).
+11. [Contributor walkthrough](CONTRIBUTING.md).
 
 ## License and attribution
 
