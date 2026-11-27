@@ -1231,6 +1231,44 @@ class CheckerTests(unittest.TestCase):
         self.assertIn("model_id=unknown", rendered)
         self.assertNotIn("model_id='unknown'", rendered)
 
+    def test_a_run_refuses_when_a_claimed_field_cannot_be_established(self):
+        """A transient version failure must not be discovered at the write.
+
+        The daemon version is read once before the run and again by every
+        attempt. If the first request fails and a later one succeeds, a
+        pre-run comparison that treated the gap as "no conflict" would
+        generate and only then hit the mismatch at append -- after the attempt
+        had been made and could no longer be recorded.
+        """
+        import types
+        from runner import cli, models, recording
+        with tempfile.TemporaryDirectory() as temporary:
+            attempts = Path(temporary) / "attempts.jsonl"
+            attempts.write_text(json.dumps({"provenance": {
+                "execution_site": "local",
+                "model_id": models.UnapprovedAdapter.MODEL_ID,
+                "model_revision": models.UnapprovedAdapter.MODEL_REVISION,
+                "harness": "ollama", "harness_version": "old-version"}}) + "\n",
+                encoding="utf-8")
+            calls = []
+            original_declared = models.UnapprovedAdapter.declared_identity
+            original_generate = models.UnapprovedAdapter.generate
+            models.UnapprovedAdapter.declared_identity = lambda self: (
+                "local", self.MODEL_ID, self.MODEL_REVISION, self.name, None)
+            models.UnapprovedAdapter.generate = lambda self, payload: calls.append(1)
+            try:
+                code = cli.cmd_run(types.SimpleNamespace(
+                    case=str(ROOT / "fixtures/cases/example-campus-transport.json"),
+                    reruns=1, run_id="t", attempts=str(attempts),
+                    export=str(Path(temporary) / "export.json"),
+                    label="TEST", timeout_seconds=5.0))
+            finally:
+                models.UnapprovedAdapter.declared_identity = original_declared
+                models.UnapprovedAdapter.generate = original_generate
+            self.assertEqual(code, 1)
+            self.assertEqual(calls, [], "no attempt may be made")
+            self.assertEqual(len(list(recording.read_attempts(attempts))), 1)
+
     def test_declared_identity_claims_nothing_when_the_daemon_is_unreachable(self):
         from runner.models import AdapterExecutionError, UnapprovedAdapter
         adapter = UnapprovedAdapter(timeout_seconds=1.0)
